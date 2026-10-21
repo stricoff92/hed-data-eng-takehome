@@ -12,7 +12,8 @@
 - the testing harness
 - writing tests
 - running the tests
-
+- Claude created RUNBOOK.md, i did not review this before submitting. I considered deleting it but decided to leave it.
+- Claude put together the tiage order, again I did not have time to review.
 
 ## What I kept for myself
 - entries in `DECISIONS.md`
