@@ -1,5 +1,4 @@
 __pycache__/
 *.py[cod]
 logs/
-out/*
-!out/.gitkeep
+dev-log.txt
