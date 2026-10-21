@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from pathlib import Path
 from typing import Any
@@ -66,6 +67,71 @@ def load_job_definitions(fixtures: Path) -> tuple[models.JobDefinition, ...]:
         raise FixtureError(f"{directory} is missing")
 
     return tuple(read_job_definition(path) for path in sorted(directory.glob("*.json")))
+
+
+CONTRACTS_RELATIVE_PATH = Path("repo") / "contracts"
+
+
+def parse_column(entry: Any) -> models.Column:
+    return models.Column(
+        name=entry["name"],
+        type=entry["type"],
+        nullable=entry["nullable"],
+        note=entry.get("note"),
+    )
+
+
+def read_contract(path: Path) -> models.Contract:
+    document = read_json(path)
+    return models.Contract(
+        table=document["table"],
+        governed=document["governed"],
+        owner=document["owner"],
+        contract_version=document["contract_version"],
+        source=(CONTRACTS_RELATIVE_PATH / path.name).as_posix(),
+        columns=tuple(parse_column(entry) for entry in document["columns"]),
+        writers=tuple(
+            models.ContractWriter(job=entry["job"], statements=tuple(entry["statements"]))
+            for entry in document["writers"]
+        ),
+    )
+
+
+def load_contracts(fixtures: Path) -> tuple[models.Contract, ...]:
+    directory = fixtures / CONTRACTS_RELATIVE_PATH
+    if not directory.is_dir():
+        raise FixtureError(f"{directory} is missing")
+
+    return tuple(read_contract(path) for path in sorted(directory.glob("*.json")))
+
+
+LINEAGE_RELATIVE_PATH = Path("repo") / "platform" / "lineage.json"
+
+
+def parse_consumer(entry: Any) -> models.Consumer:
+    return models.Consumer(
+        id=entry["id"],
+        name=entry["name"],
+        type=entry["type"],
+        owner=entry["owner"],
+        refresh=entry["refresh"],
+        reads=tuple(
+            models.ConsumerRead(table=read["table"], fields=tuple(read["fields"]))
+            for read in entry["reads"]
+        ),
+    )
+
+
+def load_lineage(fixtures: Path) -> models.Lineage:
+    document = read_json(fixtures / LINEAGE_RELATIVE_PATH)
+    return models.Lineage(
+        source=LINEAGE_RELATIVE_PATH.as_posix(),
+        tables=tuple(
+            models.TableLineage(table=entry["table"], built_from=tuple(entry["built_from"]))
+            for entry in document["tables"]
+        ),
+        consumers=tuple(parse_consumer(entry) for entry in document["consumers"]),
+    )
 
 
 # WORKSPACE loaders (observed snapshot: what is actually deployed, and what it did)
@@ -177,3 +243,170 @@ def load_runs_log(fixtures: Path) -> models.RunsLog:
         for run_id, attempts in attempts_by_run.items()
     )
     return models.RunsLog(source=RUNS_RELATIVE_PATH.as_posix(), runs=runs)
+
+
+TABLES_RELATIVE_PATH = Path("workspace") / "tables"
+HISTORY_FILE_NAME = "history.jsonl"
+SCHEMA_FILE_NAME = "schema.json"
+
+
+def table_relative_path(table: str, file_name: str) -> Path:
+    return TABLES_RELATIVE_PATH / table / file_name
+
+
+def parse_table_commit(entry: Any) -> models.TableCommit:
+    return models.TableCommit(
+        version=entry["version"],
+        timestamp=entry["timestamp"],
+        user_name=entry["userName"],
+        operation=models.Operation(entry["operation"]),
+        parameters=entry["operationParameters"],
+        # Delta reports the committing job and every metric as strings. Parsing them here is the
+        # only reason a rule can compare a commit to a job id or a row count without casting.
+        job_id=int(entry["job"]["jobId"]),
+        run_id=int(entry["job"]["runId"]),
+        metrics={key: int(value) for key, value in entry["operationMetrics"].items()},
+    )
+
+
+def load_table_history(fixtures: Path, manifest: models.Manifest, table: str) -> models.TableHistory:
+    relative_path = table_relative_path(table, HISTORY_FILE_NAME)
+    captured = captured_file(manifest, relative_path)
+
+    if captured.status is models.CaptureStatus.ERROR:
+        commits: tuple[models.TableCommit, ...] = ()
+    elif captured.status is models.CaptureStatus.OK:
+        commits = tuple(parse_table_commit(entry) for entry in read_jsonl(fixtures / relative_path))
+    else:
+        raise NotImplementedError(f"unhandled capture status: {captured.status}")
+
+    return models.TableHistory(
+        table=table,
+        source=relative_path.as_posix(),
+        status=captured.status,
+        message=captured.message,
+        commits=commits,
+    )
+
+
+def load_table_schema(fixtures: Path, manifest: models.Manifest, table: str) -> models.TableSchema:
+    relative_path = table_relative_path(table, SCHEMA_FILE_NAME)
+    captured = captured_file(manifest, relative_path)
+
+    if captured.status is models.CaptureStatus.ERROR:
+        captured_at: str | None = None
+        columns: tuple[models.Column, ...] = ()
+    elif captured.status is models.CaptureStatus.OK:
+        document = read_json(fixtures / relative_path)
+        captured_at = document["captured_at"]
+        columns = tuple(parse_column(entry) for entry in document["columns"])
+    else:
+        raise NotImplementedError(f"unhandled capture status: {captured.status}")
+
+    return models.TableSchema(
+        table=table,
+        source=relative_path.as_posix(),
+        status=captured.status,
+        message=captured.message,
+        captured_at=captured_at,
+        columns=columns,
+    )
+
+
+# REFERENCE loaders (neither repo nor workspace: what the platform has written down about itself)
+
+DICTIONARY_RELATIVE_PATH = Path("dictionary") / "data-dictionary.csv"
+DICTIONARY_FIRST_ENTRY_LINE = 2
+
+
+def parse_dictionary_entry(row: Any, line: int) -> models.DictionaryEntry:
+    return models.DictionaryEntry(
+        data_product=row["data_product"],
+        table=row["table"],
+        field=row["field"],
+        definition=row["definition"],
+        review_status=models.ReviewStatus(row["review_status"]),
+        business_owner=row["business_owner"],
+        source=row["source"],
+        original_upstream_source=row["original_upstream_source"],
+        line=line,
+    )
+
+
+def load_data_dictionary(fixtures: Path) -> models.DataDictionary:
+    path = fixtures / DICTIONARY_RELATIVE_PATH
+    if not path.is_file():
+        raise FixtureError(f"{path} is missing")
+
+    # The csv module asks for newline="" so it can handle a quoted field that spans lines itself.
+    with path.open(encoding="utf-8", newline="") as handle:
+        entries = tuple(
+            parse_dictionary_entry(row, line)
+            for line, row in enumerate(csv.DictReader(handle), start=DICTIONARY_FIRST_ENTRY_LINE)
+        )
+
+    return models.DataDictionary(source=DICTIONARY_RELATIVE_PATH.as_posix(), entries=entries)
+
+
+GAUGES_RELATIVE_PATH = Path("gauges.json")
+
+
+def parse_gauge(entry: Any) -> models.Gauge:
+    return models.Gauge(
+        name=entry["name"],
+        type=entry["type"],
+        labels=tuple(entry["labels"]),
+        owner=models.GaugeOwner(entry["owner"]),
+        description=entry["description"],
+    )
+
+
+def load_gauge_catalog(fixtures: Path) -> models.GaugeCatalog:
+    document = read_json(fixtures / GAUGES_RELATIVE_PATH)
+    return models.GaugeCatalog(
+        source=GAUGES_RELATIVE_PATH.as_posix(),
+        gauges=tuple(parse_gauge(entry) for entry in document["gauges"]),
+    )
+
+
+# AGENT loader (the overnight review, which the tool reconciles against the evidence)
+
+# Named rather than globbed: the brief cites this file, and a pack without it should say so by name
+# instead of quietly reconciling against whichever review happened to be lying around.
+AGENT_REVIEW_RELATIVE_PATH = Path("agent") / "morning-review-2026-10-20.json"
+
+
+def parse_claim_evidence(entry: Any) -> models.ClaimEvidence:
+    evidence_type = models.ClaimEvidenceType(entry["type"])
+
+    if evidence_type is models.ClaimEvidenceType.RUN:
+        return models.ClaimEvidence(type=evidence_type, run_id=entry["run_id"], job_id=None, window=None)
+    elif evidence_type is models.ClaimEvidenceType.RUNS:
+        return models.ClaimEvidence(
+            type=evidence_type, run_id=None, job_id=entry["job_id"], window=entry["window"]
+        )
+    else:
+        raise NotImplementedError(f"unhandled claim evidence type: {evidence_type}")
+
+
+def parse_claim(entry: Any) -> models.Claim:
+    return models.Claim(
+        id=entry["id"],
+        pipeline=entry["pipeline"],
+        assertion=entry["assertion"],
+        status=entry["status"],
+        evidence=tuple(parse_claim_evidence(item) for item in entry["evidence"]),
+    )
+
+
+def load_agent_review(fixtures: Path) -> models.AgentReview:
+    document = read_json(fixtures / AGENT_REVIEW_RELATIVE_PATH)
+    return models.AgentReview(
+        agent=document["agent"],
+        agent_version=document["agent_version"],
+        generated_at=document["generated_at"],
+        scope=document["scope"],
+        summary=document["summary"],
+        source=AGENT_REVIEW_RELATIVE_PATH.as_posix(),
+        claims=tuple(parse_claim(entry) for entry in document["claims"]),
+    )

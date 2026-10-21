@@ -17,6 +17,9 @@ from morning_rounds import (
     drift,
     loader,
     models,
+    reconcile,
+    report,
+    status,
 )
 
 EXIT_OK = 0
@@ -115,6 +118,18 @@ def run_check(arguments: argparse.Namespace) -> int:
         definitions = loader.load_job_definitions(fixtures)
         deployed = loader.load_jobs_snapshot(fixtures)
         runs = loader.load_runs_log(fixtures)
+        contracts = loader.load_contracts(fixtures)
+        lineage = loader.load_lineage(fixtures)
+        dictionary = loader.load_data_dictionary(fixtures)
+        gauges = loader.load_gauge_catalog(fixtures)
+        review = loader.load_agent_review(fixtures)
+        written_tables = sorted({table for pipeline in registry.pipelines for table in pipeline.writes})
+        histories = {
+            table: loader.load_table_history(fixtures, manifest, table) for table in written_tables
+        }
+        schemas = {
+            table: loader.load_table_schema(fixtures, manifest, table) for table in written_tables
+        }
     except loader.FixtureError as error:
         write_error_line(str(error))
         write_error_line("pass --fixtures DIR to point at the fixture pack.")
@@ -141,11 +156,37 @@ def run_check(arguments: argparse.Namespace) -> int:
         f"{loader.RUNS_RELATIVE_PATH.as_posix()}: {len(runs.runs)} runs, "
         f"{sum(len(run.attempts) for run in runs.runs)} attempts"
     )
-
     drift_findings = drift.find_drift(definitions, deployed)
-    write_output_line(f"drift: {len(drift_findings)} findings")
-    for finding in drift_findings:
-        write_output_line(f"  {finding.subject}: {finding.code}")
+    assessed = status.assess(registry, runs, histories, drift_findings, as_of)
+    rounds = models.Rounds(
+        as_of=as_of,
+        manifest=manifest,
+        pipelines=assessed,
+        platform_findings=status.platform_findings(registry, drift_findings),
+        histories=histories,
+        review=review,
+        verdicts=reconcile.reconcile(review, assessed, runs),
+        unreviewed=reconcile.unreviewed_pipelines(review, registry),
+        catalog=gauges,
+    )
+
+    write_output_line(
+        f"{len(contracts)} governed tables, {len(lineage.consumers)} consumers, "
+        f"{len(dictionary.entries)} documented fields, {len(schemas)} deployed schemas read"
+    )
+    for pipeline_status in sorted(rounds.pipelines, key=lambda one: report.STATUS_ORDER.index(one.status)):
+        write_output_line(
+            f"{pipeline_status.status}: {pipeline_status.pipeline.id} "
+            f"(tier {pipeline_status.pipeline.tier}, {len(pipeline_status.findings)} findings)"
+        )
+    for finding in rounds.platform_findings:
+        write_output_line(f"platform: {finding.subject}, {finding.code}")
+    for judged in rounds.verdicts:
+        write_output_line(f"{judged.verdict}: {judged.claim.id} {judged.claim.pipeline}")
+    write_output_line(f"not reviewed by the agent: {', '.join(rounds.unreviewed)}")
+
+    for written in report.write_reports(rounds, output_directory):
+        write_output_line(f"wrote {written}")
     return EXIT_OK
 
 

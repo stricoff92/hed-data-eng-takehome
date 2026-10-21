@@ -1,0 +1,413 @@
+{
+  "as_of": "2026-10-20T11:30:00Z",
+  "snapshot": {
+    "export": "platform-snapshot",
+    "captured_at": "2026-10-20T11:30:00Z",
+    "captured_by": "svc-platform-snapshot@hed.example",
+    "workspace": "adb-0000000000000000 (synthetic)",
+    "files_not_captured": [
+      {
+        "path": "workspace/tables/hed_dataplatform.gold.usecase_registry/history.jsonl",
+        "message": "PERMISSION_DENIED: User does not have SELECT on Table 'hed_dataplatform.gold.usecase_registry'."
+      },
+      {
+        "path": "workspace/tables/hed_dataplatform.gold.usecase_registry/schema.json",
+        "message": "PERMISSION_DENIED: User does not have SELECT on Table 'hed_dataplatform.gold.usecase_registry'."
+      }
+    ]
+  },
+  "pipelines": [
+    {
+      "id": "workday_bronze_daily",
+      "job": "workday_bronze_daily",
+      "tier": 1,
+      "owner": "data-platform",
+      "cadence": "daily 06:00 America/New_York",
+      "freshness_slo_hours": 26,
+      "writes": [
+        "hed_dataplatform.bronze.workday_workers",
+        "hed_dataplatform.silver.workday_workers"
+      ],
+      "status": "broken",
+      "findings": [
+        {
+          "code": "table_write_changed_no_data",
+          "what": "the newest write to hed_dataplatform.bronze.workday_workers changed no data: numOutputRows is 0",
+          "why": "v436 was committed at 2026-10-20T10:06:03Z by job 1001 and moved no rows, so the job reporting success says nothing about the data. Consumers are reading whatever was there before it ran",
+          "evidence": [
+            "workspace/tables/hed_dataplatform.bronze.workday_workers/history.jsonl: v436 WRITE at 2026-10-20T10:06:03Z by job 1001 run 882184, numOutputRows 0",
+            "workspace/tables/hed_dataplatform.bronze.workday_workers/history.jsonl: v433 WRITE at 2026-10-17T10:06:10Z by job 1001 run 881999, numOutputRows 1832",
+            "repo/docs/platform-standards.md:20-25"
+          ]
+        },
+        {
+          "code": "table_older_than_its_freshness_slo",
+          "what": "hed_dataplatform.bronze.workday_workers last changed 73.4h before 2026-10-20T11:30:00Z, against a 26h SLO",
+          "why": "the last write that changed data was v433 at 2026-10-17T10:06:10Z",
+          "evidence": [
+            "workspace/tables/hed_dataplatform.bronze.workday_workers/history.jsonl: v433 WRITE at 2026-10-17T10:06:10Z by job 1001 run 881999, numOutputRows 1832",
+            "repo/platform/pipelines.json: workday_bronze_daily cadence_hours 24, freshness_slo_hours 26",
+            "repo/docs/platform-standards.md:20-25"
+          ]
+        },
+        {
+          "code": "table_write_changed_no_data",
+          "what": "the newest write to hed_dataplatform.silver.workday_workers changed no data: numSourceRows is 0",
+          "why": "v1654 was committed at 2026-10-20T10:05:46Z by job 1001 and moved no rows, so the job reporting success says nothing about the data. Consumers are reading whatever was there before it ran",
+          "evidence": [
+            "workspace/tables/hed_dataplatform.silver.workday_workers/history.jsonl: v1654 MERGE at 2026-10-20T10:05:46Z by job 1001 run 882184, numSourceRows 0",
+            "workspace/tables/hed_dataplatform.silver.workday_workers/history.jsonl: v1651 MERGE at 2026-10-17T10:06:17Z by job 1001 run 881999, numSourceRows 1832",
+            "repo/docs/platform-standards.md:20-25"
+          ]
+        },
+        {
+          "code": "table_older_than_its_freshness_slo",
+          "what": "hed_dataplatform.silver.workday_workers last changed 73.4h before 2026-10-20T11:30:00Z, against a 26h SLO",
+          "why": "the last write that changed data was v1651 at 2026-10-17T10:06:17Z",
+          "evidence": [
+            "workspace/tables/hed_dataplatform.silver.workday_workers/history.jsonl: v1651 MERGE at 2026-10-17T10:06:17Z by job 1001 run 881999, numSourceRows 1832",
+            "repo/platform/pipelines.json: workday_bronze_daily cadence_hours 24, freshness_slo_hours 26",
+            "repo/docs/platform-standards.md:20-25"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gold_dim_employees_daily",
+      "job": "gold_dim_employees_daily",
+      "tier": 1,
+      "owner": "data-platform",
+      "cadence": "daily 06:30 America/New_York",
+      "freshness_slo_hours": 26,
+      "writes": [
+        "hed_dataplatform.gold.dim_employees"
+      ],
+      "status": "healthy",
+      "findings": []
+    },
+    {
+      "id": "dim_projects_daily",
+      "job": "dim_projects_daily",
+      "tier": 1,
+      "owner": "data-platform",
+      "cadence": "daily 05:30 America/New_York",
+      "freshness_slo_hours": 26,
+      "writes": [
+        "hed_dataplatform.gold.dim_projects"
+      ],
+      "status": "broken",
+      "findings": [
+        {
+          "code": "job_run_failed",
+          "what": "the newest run of dim_projects_daily failed",
+          "why": "run 882174 failed on 2 attempts, the last of them at 2026-10-20T09:35:13Z: [TABLE_OR_VIEW_NOT_FOUND] The table or view `hed_dataplatform.bronze.dataverse_projects` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42P01",
+          "evidence": [
+            "workspace/runs.jsonl: run_id 882174 attempt 0, FAILED at 2026-10-20T09:32:08Z",
+            "workspace/runs.jsonl: run_id 882174 attempt 1, FAILED at 2026-10-20T09:35:13Z",
+            "workspace/runs.jsonl: run_id 882174, state_message [TABLE_OR_VIEW_NOT_FOUND] The table or view `hed_dataplatform.bronze.dataverse_projects` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42P01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dashboard_parity_daily",
+      "job": "dashboard_parity_daily",
+      "tier": 3,
+      "owner": "data-platform",
+      "cadence": "daily 04:00 America/New_York",
+      "freshness_slo_hours": 26,
+      "writes": [
+        "hed_dataplatform.gold.dashboard_parity"
+      ],
+      "status": "broken",
+      "findings": [
+        {
+          "code": "deployed_settings_differ_from_git",
+          "what": "the deployed settings for dashboard_parity_daily differ from Git: schedule.pause_status",
+          "why": "the workspace is a deployment target, not an editing surface. r.chen@hed.example changed the job at 2026-10-11T14:02:00Z, so a redeploy from main would revert it",
+          "evidence": [
+            "repo/databricks/jobs/dashboard_parity_daily.json: schedule.pause_status = \"UNPAUSED\"",
+            "workspace/jobs.json: job_id 1004, schedule.pause_status = \"PAUSED\"",
+            "workspace/jobs.json: job_id 1004, last_modified r.chen@hed.example at 2026-10-11T14:02:00Z",
+            "repo/docs/platform-standards.md:5-11"
+          ]
+        },
+        {
+          "code": "job_did_not_run",
+          "what": "dashboard_parity_daily last started 219.5h before 2026-10-20T11:30:00Z, longer ago than its 26h SLO allows",
+          "why": "its cadence is daily 04:00 America/New_York, so runs it should have made have not happened. Run 881814 is the newest the snapshot holds and it ended SUCCESS",
+          "evidence": [
+            "workspace/runs.jsonl: run_id 881814 started 2026-10-11T08:00:00Z, SUCCESS",
+            "repo/platform/pipelines.json: dashboard_parity_daily cadence_hours 24, freshness_slo_hours 26"
+          ]
+        },
+        {
+          "code": "table_older_than_its_freshness_slo",
+          "what": "hed_dataplatform.gold.dashboard_parity last changed 219.4h before 2026-10-20T11:30:00Z, against a 26h SLO",
+          "why": "the last write that changed data was v325 at 2026-10-11T08:08:00Z. The newest commit is v326 OPTIMIZE at 2026-10-19T03:07:00Z, which is maintenance and refreshed nothing",
+          "evidence": [
+            "workspace/tables/hed_dataplatform.gold.dashboard_parity/history.jsonl: v325 WRITE at 2026-10-11T08:08:00Z by job 1004 run 881814, numOutputRows 143",
+            "workspace/tables/hed_dataplatform.gold.dashboard_parity/history.jsonl: v326 OPTIMIZE at 2026-10-19T03:07:00Z by job 1099 run 882042, no rows: maintenance rewrites files",
+            "repo/platform/pipelines.json: dashboard_parity_daily cadence_hours 24, freshness_slo_hours 26",
+            "repo/docs/platform-standards.md:20-25"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "graph_pipeline_daily",
+      "job": "graph_pipeline_daily",
+      "tier": 2,
+      "owner": "data-platform",
+      "cadence": "daily 03:00 America/New_York",
+      "freshness_slo_hours": 26,
+      "writes": [
+        "hed_dataplatform.silver.graph_meeting_events"
+      ],
+      "status": "degraded",
+      "findings": [
+        {
+          "code": "deployed_settings_differ_from_git",
+          "what": "the deployed settings for graph_pipeline_daily differ from Git: job_clusters[0].new_cluster.node_type_id, job_clusters[0].new_cluster.spark_version",
+          "why": "the workspace is a deployment target, not an editing surface. j.okafor@hed.example changed the job at 2026-10-15T19:41:00Z, so a redeploy from main would revert it",
+          "evidence": [
+            "repo/databricks/jobs/graph_pipeline_daily.json: job_clusters[0].new_cluster.node_type_id = \"Standard_D4s_v5\"",
+            "workspace/jobs.json: job_id 1005, job_clusters[0].new_cluster.node_type_id = \"Standard_DS3_v2\"",
+            "repo/databricks/jobs/graph_pipeline_daily.json: job_clusters[0].new_cluster.spark_version = \"14.3.x-scala2.12\"",
+            "workspace/jobs.json: job_id 1005, job_clusters[0].new_cluster.spark_version = \"13.3.x-scala2.12\"",
+            "workspace/jobs.json: job_id 1005, last_modified j.okafor@hed.example at 2026-10-15T19:41:00Z",
+            "repo/docs/platform-standards.md:5-11"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workday_project_transactions_weekly",
+      "job": "workday_project_transactions_weekly",
+      "tier": 2,
+      "owner": "data-platform",
+      "cadence": "weekly Wednesday 05:00 America/New_York",
+      "freshness_slo_hours": 192,
+      "writes": [
+        "hed_dataplatform.silver.workday_project_transactions"
+      ],
+      "status": "healthy",
+      "findings": []
+    },
+    {
+      "id": "mm_rapid_pipeline_30min",
+      "job": "mm_rapid_pipeline_30min",
+      "tier": 1,
+      "owner": "data-platform",
+      "cadence": "every 30 minutes",
+      "freshness_slo_hours": 2,
+      "writes": [
+        "meeting_minutes.silver.meeting_segments"
+      ],
+      "status": "degraded",
+      "findings": [
+        {
+          "code": "job_succeeds_only_on_retry",
+          "what": "mm_rapid_pipeline_30min is succeeding only because it is being retried",
+          "why": "run 882210 failed 2 attempts before succeeding, and 9 of the last 25 runs did the same. What the attempts failed with is in the run log; why it keeps happening is not",
+          "evidence": [
+            "workspace/runs.jsonl: run_id 882210 attempt 0, FAILED at 2026-10-20T11:03:49Z",
+            "workspace/runs.jsonl: run_id 882210 attempt 1, FAILED at 2026-10-20T11:08:34Z",
+            "workspace/runs.jsonl: run_id 882210 attempt 2, SUCCESS at 2026-10-20T11:13:49Z",
+            "workspace/runs.jsonl: run_id 882210 attempt 0, state_message io.delta.exceptions.ConcurrentAppendException: Files were added to partition [meeting_date=2026-10-20] by a concurrent update. Please try the operation again.",
+            "workspace/runs.jsonl: run_id 882210 attempt 1, state_message io.delta.exceptions.ConcurrentAppendException: Files were added to partition [meeting_date=2026-10-20] by a concurrent update. Please try the operation again.",
+            "workspace/runs.jsonl: 9 of the last 25 runs of mm_rapid_pipeline_30min needed a retry"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deltek_helix_daily_refresh",
+      "job": "deltek_helix_daily_refresh",
+      "tier": 1,
+      "owner": "data-platform",
+      "cadence": "daily 04:30 America/New_York",
+      "freshness_slo_hours": 26,
+      "writes": [
+        "hed_dataplatform.gold.fact_project_financials"
+      ],
+      "status": "healthy",
+      "findings": []
+    },
+    {
+      "id": "use_case_tracking_scheduled",
+      "job": "use_case_tracking_scheduled",
+      "tier": 2,
+      "owner": "data-platform",
+      "cadence": "daily 07:00 America/New_York",
+      "freshness_slo_hours": 26,
+      "writes": [
+        "hed_dataplatform.gold.usecase_registry"
+      ],
+      "status": "unmeasured",
+      "findings": [
+        {
+          "code": "table_evidence_could_not_be_read",
+          "what": "the evidence for hed_dataplatform.gold.usecase_registry was not captured, so use_case_tracking_scheduled cannot be judged",
+          "why": "the snapshot could not read the table: PERMISSION_DENIED: User does not have SELECT on Table 'hed_dataplatform.gold.usecase_registry'. That is a gap in the evidence and not a statement about the data, so the pipeline is unmeasured rather than broken or healthy",
+          "evidence": [
+            "workspace/manifest.json: workspace/tables/hed_dataplatform.gold.usecase_registry/history.jsonl, status error",
+            "workspace/manifest.json: workspace/tables/hed_dataplatform.gold.usecase_registry/history.jsonl, message PERMISSION_DENIED: User does not have SELECT on Table 'hed_dataplatform.gold.usecase_registry'.",
+            "repo/platform/pipelines.json: use_case_tracking_scheduled cadence_hours 24, freshness_slo_hours 26"
+          ]
+        }
+      ]
+    }
+  ],
+  "platform_findings": [
+    {
+      "code": "job_deployed_without_a_git_definition",
+      "what": "job mm_segments_backfill is deployed in the workspace and is not defined in Git",
+      "why": "it was last changed by r.chen@hed.example at 2026-10-20T06:48:00Z, and no file in repo/databricks/jobs/ declares it, so the workspace cannot be reproduced from main",
+      "evidence": [
+        "workspace/jobs.json: job_id 1188, name mm_segments_backfill",
+        "workspace/jobs.json: job_id 1188, last_modified r.chen@hed.example at 2026-10-20T06:48:00Z",
+        "workspace/jobs.json: job_id 1188, git_source absent",
+        "repo/docs/platform-standards.md:5-11"
+      ]
+    }
+  ],
+  "agent_reconciliation": {
+    "agent": "pipeline-health-monitor",
+    "agent_version": "0.4.2",
+    "generated_at": "2026-10-20T10:45:00Z",
+    "scope": "Databricks jobs with a run in the last 7 days",
+    "claims": [
+      {
+        "id": "C1",
+        "pipeline": "workday_bronze_daily",
+        "claimed_status": "healthy",
+        "assertion": "Healthy. Today's run succeeded.",
+        "verdict": "contradicted",
+        "why": "the claim says healthy; the evidence says broken. The runs it cites are real and say what it says they say, so what it got wrong is the conclusion, not the citation",
+        "evidence": [
+          "C1 claims healthy: Healthy. Today's run succeeded.",
+          "workspace/runs.jsonl: run_id 882184 of workday_bronze_daily started 2026-10-20T10:00:00Z, SUCCESS after 0 retries",
+          "rounds: workday_bronze_daily is broken",
+          "rounds: table_write_changed_no_data, the newest write to hed_dataplatform.bronze.workday_workers changed no data: numOutputRows is 0",
+          "rounds: table_older_than_its_freshness_slo, hed_dataplatform.bronze.workday_workers last changed 73.4h before 2026-10-20T11:30:00Z, against a 26h SLO",
+          "rounds: table_write_changed_no_data, the newest write to hed_dataplatform.silver.workday_workers changed no data: numSourceRows is 0",
+          "rounds: table_older_than_its_freshness_slo, hed_dataplatform.silver.workday_workers last changed 73.4h before 2026-10-20T11:30:00Z, against a 26h SLO"
+        ]
+      },
+      {
+        "id": "C2",
+        "pipeline": "gold_dim_employees_daily",
+        "claimed_status": "healthy",
+        "assertion": "Healthy. Refreshed this morning.",
+        "verdict": "verified",
+        "why": "the evidence supports healthy, which is what the claim asserts",
+        "evidence": [
+          "C2 claims healthy: Healthy. Refreshed this morning.",
+          "workspace/runs.jsonl: run_id 882199 of gold_dim_employees_daily started 2026-10-20T10:30:00Z, SUCCESS after 0 retries",
+          "rounds: gold_dim_employees_daily is healthy"
+        ]
+      },
+      {
+        "id": "C3",
+        "pipeline": "dim_projects_daily",
+        "claimed_status": "recovered",
+        "assertion": "Recovered. The 09:30Z run failed on a missing source table; I triggered a manual re-run, which succeeded at 10:12Z.",
+        "verdict": "contradicted",
+        "why": "the claim rests on run 882177, which the run log has no record of. Whatever else it asserts cannot be checked against the evidence it chose to cite",
+        "evidence": [
+          "C3 claims recovered: Recovered. The 09:30Z run failed on a missing source table; I triggered a manual re-run, which succeeded at 10:12Z.",
+          "workspace/runs.jsonl: run_id 882174 of dim_projects_daily started 2026-10-20T09:30:00Z, FAILED after 1 retries",
+          "workspace/runs.jsonl: no run with run_id 882177",
+          "rounds: dim_projects_daily is broken",
+          "rounds: job_run_failed, the newest run of dim_projects_daily failed"
+        ]
+      },
+      {
+        "id": "C4",
+        "pipeline": "graph_pipeline_daily",
+        "claimed_status": "healthy",
+        "assertion": "Healthy. Today's run succeeded.",
+        "verdict": "contradicted",
+        "why": "the claim says healthy; the evidence says degraded. The runs it cites are real and say what it says they say, so what it got wrong is the conclusion, not the citation",
+        "evidence": [
+          "C4 claims healthy: Healthy. Today's run succeeded.",
+          "workspace/runs.jsonl: run_id 882128 of graph_pipeline_daily started 2026-10-20T07:00:00Z, SUCCESS after 0 retries",
+          "rounds: graph_pipeline_daily is degraded",
+          "rounds: deployed_settings_differ_from_git, the deployed settings for graph_pipeline_daily differ from Git: job_clusters[0].new_cluster.node_type_id, job_clusters[0].new_cluster.spark_version"
+        ]
+      },
+      {
+        "id": "C5",
+        "pipeline": "workday_project_transactions_weekly",
+        "claimed_status": "late",
+        "assertion": "Late. No successful run in over 6 days; exceeds the daily freshness window.",
+        "verdict": "contradicted",
+        "why": "the claim says late; the evidence says healthy. The runs it cites are real and say what it says they say, so what it got wrong is the conclusion, not the citation",
+        "evidence": [
+          "C5 claims late: Late. No successful run in over 6 days; exceeds the daily freshness window.",
+          "workspace/runs.jsonl: run_id 881913 of workday_project_transactions_weekly started 2026-10-14T09:00:00Z, SUCCESS after 0 retries",
+          "rounds: workday_project_transactions_weekly is healthy"
+        ]
+      },
+      {
+        "id": "C6",
+        "pipeline": "mm_rapid_pipeline_30min",
+        "claimed_status": "healthy",
+        "assertion": "Healthy. 25 of the last 25 runs succeeded.",
+        "verdict": "contradicted",
+        "why": "the claim says healthy; the evidence says degraded. The runs it cites are real and say what it says they say, so what it got wrong is the conclusion, not the citation",
+        "evidence": [
+          "C6 claims healthy: Healthy. 25 of the last 25 runs succeeded.",
+          "workspace/runs.jsonl: job_id 1007 over last 25, 25 runs captured, 25 succeeded, 9 of them only after a retry",
+          "rounds: mm_rapid_pipeline_30min is degraded",
+          "rounds: job_succeeds_only_on_retry, mm_rapid_pipeline_30min is succeeding only because it is being retried"
+        ]
+      },
+      {
+        "id": "C7",
+        "pipeline": "deltek_helix_daily_refresh",
+        "claimed_status": "healthy",
+        "assertion": "Healthy. Today's run succeeded.",
+        "verdict": "verified",
+        "why": "the evidence supports healthy, which is what the claim asserts",
+        "evidence": [
+          "C7 claims healthy: Healthy. Today's run succeeded.",
+          "workspace/runs.jsonl: run_id 882159 of deltek_helix_daily_refresh started 2026-10-20T08:30:00Z, SUCCESS after 0 retries",
+          "rounds: deltek_helix_daily_refresh is healthy"
+        ]
+      },
+      {
+        "id": "C8",
+        "pipeline": "use_case_tracking_scheduled",
+        "claimed_status": "healthy",
+        "assertion": "Healthy. Registry table is fresh.",
+        "verdict": "unverifiable",
+        "why": "the evidence needed to judge use_case_tracking_scheduled was not captured, so the claim can be neither confirmed nor contradicted",
+        "evidence": [
+          "C8 claims healthy: Healthy. Registry table is fresh.",
+          "workspace/runs.jsonl: run_id 882066 of use_case_tracking_scheduled started 2026-10-19T11:00:00Z, SUCCESS after 0 retries",
+          "rounds: use_case_tracking_scheduled is unmeasured",
+          "rounds: table_evidence_could_not_be_read, the evidence for hed_dataplatform.gold.usecase_registry was not captured, so use_case_tracking_scheduled cannot be judged"
+        ]
+      }
+    ],
+    "pipelines_not_reviewed": [
+      "dashboard_parity_daily"
+    ]
+  },
+  "counts": {
+    "pipelines_by_status": {
+      "broken": 3,
+      "unmeasured": 1,
+      "degraded": 2,
+      "healthy": 3
+    },
+    "claims_by_verdict": {
+      "verified": 2,
+      "contradicted": 5,
+      "unverifiable": 1
+    },
+    "platform_findings": 1
+  }
+}

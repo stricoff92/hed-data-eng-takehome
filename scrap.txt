@@ -9,3 +9,15 @@
      freshness_slo_hours.
   5. Governed table → schema.json vs repo/contracts/<x>.json.
   6. Any finding → lineage.json for blast radius.
+
+
+  1. manifest.json loader — small, and it's the gate. Without it use_case_tracking reads as healthy off a SUCCESS.
+  2. history.jsonl + schema.json loaders — TableCommit with an Operation enum (WRITE, MERGE, OPTIMIZE, CREATE OR REPLACE TABLE AS SELECT — closed per the fixtures README), metrics
+     kept as the str→str dict Delta reports.
+  3. Status rule — gate first, then run axis, then data axis.
+
+
+
+
+Rule 5:
+   fact_project_financials: schema drift

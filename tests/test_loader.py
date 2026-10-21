@@ -1,3 +1,4 @@
+import collections
 import unittest
 from pathlib import Path
 
@@ -39,6 +40,17 @@ PERMISSION_DENIED_CAPTURE = {
     "status": "error",
     "message": "PERMISSION_DENIED: User does not have SELECT on Table "
                "'hed_dataplatform.gold.usecase_registry'.",
+}
+
+
+A_BRONZE_WRITE_COMMIT = {
+    "version": 436,
+    "timestamp": "2026-10-20T10:06:03Z",
+    "userName": "ci-deploy@hed.example",
+    "operation": "WRITE",
+    "operationParameters": {"mode": "Append"},
+    "job": {"jobId": "1001", "runId": "882184"},
+    "operationMetrics": {"numFiles": "0", "numOutputRows": "0", "numOutputBytes": "0"},
 }
 
 
@@ -352,6 +364,369 @@ class RunsLogTest(unittest.TestCase):
 
         self.assertIn("runs.jsonl", str(raised.exception))
         self.assertIn("is missing", str(raised.exception))
+
+
+class ContractsTest(unittest.TestCase):
+    def test_both_governed_tables_load_with_the_contract_version_they_promise(self) -> None:
+        contracts = loader.load_contracts(SUPPLIED_FIXTURES)
+        by_table = {contract.table: contract for contract in contracts}
+
+        self.assertEqual(len(contracts), 2)
+        self.assertEqual(by_table["hed_dataplatform.gold.dim_projects"].contract_version, "2.0.1")
+        self.assertEqual(
+            by_table["hed_dataplatform.gold.fact_project_financials"].contract_version, "1.2.0"
+        )
+        self.assertTrue(all(contract.governed for contract in contracts))
+
+    def test_a_contract_cites_the_repository_file_it_was_read_from(self) -> None:
+        contracts = loader.load_contracts(SUPPLIED_FIXTURES)
+        by_table = {contract.table: contract for contract in contracts}
+
+        self.assertEqual(
+            by_table["hed_dataplatform.gold.dim_projects"].source,
+            "repo/contracts/gold.dim_projects.json",
+        )
+
+    def test_a_contract_names_the_job_allowed_to_write_the_table_and_how(self) -> None:
+        contracts = loader.load_contracts(SUPPLIED_FIXTURES)
+        by_table = {contract.table: contract for contract in contracts}
+
+        writers = by_table["hed_dataplatform.gold.fact_project_financials"].writers
+        self.assertEqual(len(writers), 1)
+        self.assertEqual(writers[0].job, "deltek_helix_daily_refresh")
+        self.assertEqual(writers[0].statements, ("WRITE (overwrite)",))
+
+    def test_a_contract_column_keeps_the_note_that_explains_how_to_read_its_values(self) -> None:
+        contracts = loader.load_contracts(SUPPLIED_FIXTURES)
+        by_table = {contract.table: contract for contract in contracts}
+
+        financials = by_table["hed_dataplatform.gold.fact_project_financials"]
+        columns = {column.name: column for column in financials.columns}
+        self.assertEqual(columns["period"].note, "YYYY-MM")
+        self.assertEqual(columns["fee_currency"].note, "ISO 4217")
+        self.assertIsNone(columns["gross_fee"].note)
+
+    def test_the_contract_promises_a_money_column_the_deployed_table_no_longer_has(self) -> None:
+        manifest = loader.load_manifest(SUPPLIED_FIXTURES)
+        contracts = loader.load_contracts(SUPPLIED_FIXTURES)
+        promised = next(c for c in contracts if c.table.endswith("fact_project_financials"))
+
+        deployed = loader.load_table_schema(SUPPLIED_FIXTURES, manifest, promised.table)
+
+        promised_columns = {column.name: column for column in promised.columns}
+        deployed_columns = {column.name: column for column in deployed.columns}
+        self.assertEqual(promised_columns["net_fee"].type, "DECIMAL(18,2)")
+        self.assertNotIn("net_fee", deployed_columns)
+        self.assertEqual(deployed_columns["net_fee_usd"].type, "DOUBLE")
+        self.assertNotIn("fee_currency", deployed_columns)
+
+
+class LineageTest(unittest.TestCase):
+    def test_the_lineage_loads_every_table_edge_and_every_consumer_it_declares(self) -> None:
+        lineage = loader.load_lineage(SUPPLIED_FIXTURES)
+
+        self.assertEqual(lineage.source, "repo/platform/lineage.json")
+        self.assertEqual(len(lineage.tables), 4)
+        self.assertEqual(len(lineage.consumers), 8)
+
+    def test_a_table_knows_which_tables_it_was_built_from(self) -> None:
+        lineage = loader.load_lineage(SUPPLIED_FIXTURES)
+        built_from = {edge.table: edge.built_from for edge in lineage.tables}
+
+        self.assertEqual(
+            built_from["hed_dataplatform.gold.dim_employees"],
+            ("hed_dataplatform.silver.workday_workers",),
+        )
+
+    def test_a_consumer_names_the_fields_it_reads_so_a_finding_can_reach_the_field(self) -> None:
+        lineage = loader.load_lineage(SUPPLIED_FIXTURES)
+        by_id = {consumer.id: consumer for consumer in lineage.consumers}
+
+        financials = by_id["pbi-project-financials"]
+        self.assertEqual(financials.name, "Project Financials")
+        self.assertEqual(financials.type, "powerbi")
+        reads = {read.table: read.fields for read in financials.reads}
+        self.assertIn("net_fee", reads["hed_dataplatform.gold.fact_project_financials"])
+        self.assertIn("fee_currency", reads["hed_dataplatform.gold.fact_project_financials"])
+
+
+class TableHistoryTest(unittest.TestCase):
+    def test_a_readable_table_loads_its_commits_newest_first(self) -> None:
+        manifest = loader.load_manifest(SUPPLIED_FIXTURES)
+
+        history = loader.load_table_history(
+            SUPPLIED_FIXTURES, manifest, "hed_dataplatform.bronze.workday_workers"
+        )
+
+        self.assertEqual(history.status, models.CaptureStatus.OK)
+        self.assertEqual(
+            history.source,
+            "workspace/tables/hed_dataplatform.bronze.workday_workers/history.jsonl",
+        )
+        self.assertEqual(len(history.commits), 25)
+        self.assertEqual([commit.version for commit in history.commits[:3]], [436, 435, 434])
+
+    def test_a_table_the_snapshot_could_not_read_comes_back_empty_with_the_reason_why(self) -> None:
+        manifest = loader.load_manifest(SUPPLIED_FIXTURES)
+
+        history = loader.load_table_history(
+            SUPPLIED_FIXTURES, manifest, "hed_dataplatform.gold.usecase_registry"
+        )
+
+        self.assertEqual(history.status, models.CaptureStatus.ERROR)
+        self.assertEqual(history.commits, ())
+        self.assertIn("PERMISSION_DENIED", str(history.message))
+
+    def test_the_newest_commit_on_a_table_can_be_maintenance_run_by_another_job_entirely(self) -> None:
+        manifest = loader.load_manifest(SUPPLIED_FIXTURES)
+
+        history = loader.load_table_history(
+            SUPPLIED_FIXTURES, manifest, "hed_dataplatform.gold.dashboard_parity"
+        )
+
+        newest, previous = history.commits[0], history.commits[1]
+        self.assertEqual(newest.operation, models.Operation.OPTIMIZE)
+        self.assertEqual(newest.job_id, 1099)
+        self.assertEqual(newest.timestamp, "2026-10-19T03:07:00Z")
+
+        self.assertEqual(previous.operation, models.Operation.WRITE)
+        self.assertEqual(previous.job_id, 1004)
+        self.assertEqual(previous.timestamp, "2026-10-11T08:08:00Z")
+
+    def test_a_table_can_carry_commits_from_two_different_jobs_writing_the_same_rows(self) -> None:
+        manifest = loader.load_manifest(SUPPLIED_FIXTURES)
+
+        history = loader.load_table_history(
+            SUPPLIED_FIXTURES, manifest, "meeting_minutes.silver.meeting_segments"
+        )
+
+        self.assertEqual(sorted({commit.job_id for commit in history.commits}), [1007, 1188])
+
+    def test_a_commit_arrives_with_its_job_and_its_counters_as_numbers_not_delta_strings(self) -> None:
+        commit = loader.parse_table_commit(A_BRONZE_WRITE_COMMIT)
+
+        self.assertEqual(commit.job_id, 1001)
+        self.assertEqual(commit.run_id, 882184)
+        self.assertEqual(commit.metrics["numOutputRows"], 0)
+        self.assertEqual(commit.operation, models.Operation.WRITE)
+        self.assertEqual(commit.parameters, {"mode": "Append"})
+
+    def test_every_operation_the_platform_performs_on_a_table_is_recognised(self) -> None:
+        manifest = loader.load_manifest(SUPPLIED_FIXTURES)
+        registry = loader.load_pipeline_registry(SUPPLIED_FIXTURES)
+
+        seen = {
+            commit.operation
+            for pipeline in registry.pipelines
+            for table in pipeline.writes
+            for commit in loader.load_table_history(SUPPLIED_FIXTURES, manifest, table).commits
+        }
+
+        self.assertEqual(seen, set(models.Operation))
+
+    def test_a_commit_in_an_operation_the_pack_does_not_document_is_refused(self) -> None:
+        vacuumed = {**A_BRONZE_WRITE_COMMIT, "operation": "VACUUM START"}
+
+        with self.assertRaises(ValueError):
+            loader.parse_table_commit(vacuumed)
+
+
+class TableSchemaTest(unittest.TestCase):
+    def test_a_readable_schema_loads_its_columns_in_the_order_the_table_declares_them(self) -> None:
+        manifest = loader.load_manifest(SUPPLIED_FIXTURES)
+
+        schema = loader.load_table_schema(
+            SUPPLIED_FIXTURES, manifest, "hed_dataplatform.gold.dim_projects"
+        )
+
+        self.assertEqual(schema.status, models.CaptureStatus.OK)
+        self.assertEqual(schema.captured_at, "2026-10-20T11:30:00Z")
+        self.assertEqual(
+            [column.name for column in schema.columns],
+            ["project_id", "project_name", "sector", "project_status", "_built_at"],
+        )
+        self.assertFalse(schema.columns[0].nullable)
+        self.assertTrue(schema.columns[1].nullable)
+
+    def test_a_schema_the_snapshot_could_not_read_has_no_columns_and_no_capture_time(self) -> None:
+        manifest = loader.load_manifest(SUPPLIED_FIXTURES)
+
+        schema = loader.load_table_schema(
+            SUPPLIED_FIXTURES, manifest, "hed_dataplatform.gold.usecase_registry"
+        )
+
+        self.assertEqual(schema.status, models.CaptureStatus.ERROR)
+        self.assertEqual(schema.columns, ())
+        self.assertIsNone(schema.captured_at)
+        self.assertIn("PERMISSION_DENIED", str(schema.message))
+
+
+class DataDictionaryTest(unittest.TestCase):
+    def test_every_documented_field_loads_with_the_line_it_sits_on(self) -> None:
+        dictionary = loader.load_data_dictionary(SUPPLIED_FIXTURES)
+
+        self.assertEqual(dictionary.source, "dictionary/data-dictionary.csv")
+        self.assertEqual(len(dictionary.entries), 17)
+        self.assertEqual(dictionary.entries[0].line, 2)
+        self.assertEqual(dictionary.entries[-1].line, 18)
+
+    def test_a_field_nobody_has_defined_is_loaded_empty_rather_than_quietly_filled_in(self) -> None:
+        dictionary = loader.load_data_dictionary(SUPPLIED_FIXTURES)
+        by_line = {entry.line: entry for entry in dictionary.entries}
+
+        undefined = by_line[13]
+        self.assertEqual(undefined.table, "hed_dataplatform.gold.fact_project_financials")
+        self.assertEqual(undefined.field, "net_fee")
+        self.assertEqual(undefined.definition, "")
+        self.assertEqual(undefined.business_owner, "")
+        self.assertEqual(undefined.review_status, models.ReviewStatus.NEEDS_REVIEW)
+
+    def test_an_approved_field_carries_the_definition_and_owner_somebody_signed_off(self) -> None:
+        dictionary = loader.load_data_dictionary(SUPPLIED_FIXTURES)
+        by_line = {entry.line: entry for entry in dictionary.entries}
+
+        approved = by_line[2]
+        self.assertEqual(approved.field, "employee_id")
+        self.assertEqual(approved.review_status, models.ReviewStatus.APPROVED)
+        self.assertEqual(approved.business_owner, "People Analytics — S. Patel")
+        self.assertEqual(approved.original_upstream_source, "Workday")
+
+    def test_five_of_the_documented_fields_are_still_waiting_on_review(self) -> None:
+        dictionary = loader.load_data_dictionary(SUPPLIED_FIXTURES)
+
+        waiting = [
+            entry for entry in dictionary.entries
+            if entry.review_status is models.ReviewStatus.NEEDS_REVIEW
+        ]
+
+        self.assertEqual([entry.line for entry in waiting], [3, 6, 9, 13, 16])
+
+    def test_a_review_status_the_dictionary_format_does_not_document_is_refused(self) -> None:
+        row = {
+            "data_product": "Workforce",
+            "table": "hed_dataplatform.gold.dim_employees",
+            "field": "employee_id",
+            "definition": "Unique Workday employee identifier.",
+            "review_status": "Rejected",
+            "business_owner": "People Analytics — S. Patel",
+            "source": "Databricks Gold",
+            "original_upstream_source": "Workday",
+        }
+
+        with self.assertRaises(ValueError):
+            loader.parse_dictionary_entry(row, line=2)
+
+
+class GaugeCatalogTest(unittest.TestCase):
+    def test_the_catalog_loads_every_gauge_and_who_is_meant_to_produce_it(self) -> None:
+        catalog = loader.load_gauge_catalog(SUPPLIED_FIXTURES)
+        owners = collections.Counter(gauge.owner for gauge in catalog.gauges)
+
+        self.assertEqual(catalog.source, "gauges.json")
+        self.assertEqual(len(catalog.gauges), 10)
+        self.assertEqual(owners[models.GaugeOwner.ROUNDS], 6)
+        self.assertEqual(owners[models.GaugeOwner.EXTERNAL], 2)
+        self.assertEqual(owners[models.GaugeOwner.UNOWNED], 2)
+
+    def test_a_gauge_this_tool_owns_declares_the_labels_every_sample_must_carry(self) -> None:
+        catalog = loader.load_gauge_catalog(SUPPLIED_FIXTURES)
+        by_name = {gauge.name: gauge for gauge in catalog.gauges}
+
+        self.assertEqual(by_name["pipeline_status"].owner, models.GaugeOwner.ROUNDS)
+        self.assertEqual(by_name["pipeline_status"].labels, ("pipeline", "status", "tier"))
+        self.assertEqual(by_name["pipeline_data_age_seconds"].labels, ("pipeline", "table", "tier"))
+
+    def test_a_gauge_nothing_measures_yet_is_loaded_as_unowned_not_as_ours(self) -> None:
+        catalog = loader.load_gauge_catalog(SUPPLIED_FIXTURES)
+        by_name = {gauge.name: gauge for gauge in catalog.gauges}
+
+        self.assertEqual(by_name["pipeline_cost_usd_daily"].owner, models.GaugeOwner.UNOWNED)
+        self.assertEqual(by_name["pipeline_dq_pass_ratio"].owner, models.GaugeOwner.UNOWNED)
+        self.assertEqual(by_name["databricks_job_failures_total"].owner, models.GaugeOwner.EXTERNAL)
+
+    def test_a_gauge_owner_the_catalog_format_does_not_document_is_refused(self) -> None:
+        orphaned = {
+            "name": "pipeline_status",
+            "type": "gauge",
+            "labels": ["pipeline"],
+            "owner": "somebody-else",
+            "description": "Pipeline status.",
+        }
+
+        with self.assertRaises(ValueError):
+            loader.parse_gauge(orphaned)
+
+
+class AgentReviewTest(unittest.TestCase):
+    def test_the_review_loads_every_claim_the_agent_made_and_who_made_them(self) -> None:
+        review = loader.load_agent_review(SUPPLIED_FIXTURES)
+
+        self.assertEqual(review.agent, "pipeline-health-monitor")
+        self.assertEqual(review.agent_version, "0.4.2")
+        self.assertEqual(review.generated_at, "2026-10-20T10:45:00Z")
+        self.assertEqual(review.source, "agent/morning-review-2026-10-20.json")
+        self.assertEqual(len(review.claims), 8)
+
+    def test_a_claim_about_one_run_cites_that_run_and_claims_no_window(self) -> None:
+        review = loader.load_agent_review(SUPPLIED_FIXTURES)
+        by_id = {claim.id: claim for claim in review.claims}
+
+        single = by_id["C1"]
+        self.assertEqual(single.pipeline, "workday_bronze_daily")
+        self.assertEqual(single.evidence[0].type, models.ClaimEvidenceType.RUN)
+        self.assertEqual(single.evidence[0].run_id, 882184)
+        self.assertIsNone(single.evidence[0].window)
+
+    def test_a_claim_about_a_run_of_runs_cites_the_job_and_the_window_it_looked_at(self) -> None:
+        review = loader.load_agent_review(SUPPLIED_FIXTURES)
+        by_id = {claim.id: claim for claim in review.claims}
+
+        aggregate = by_id["C6"].evidence[0]
+        self.assertEqual(aggregate.type, models.ClaimEvidenceType.RUNS)
+        self.assertEqual(aggregate.job_id, 1007)
+        self.assertEqual(aggregate.window, "last 25")
+        self.assertIsNone(aggregate.run_id)
+
+    def test_the_agent_states_pipelines_in_words_the_platform_does_not_define(self) -> None:
+        review = loader.load_agent_review(SUPPLIED_FIXTURES)
+
+        claimed = {claim.status for claim in review.claims}
+
+        self.assertEqual(claimed, {"healthy", "recovered", "late"})
+
+    def test_the_agent_never_mentions_the_one_pipeline_that_has_not_run_in_nine_days(self) -> None:
+        review = loader.load_agent_review(SUPPLIED_FIXTURES)
+        registry = loader.load_pipeline_registry(SUPPLIED_FIXTURES)
+
+        reviewed = {claim.pipeline for claim in review.claims}
+        registered = {pipeline.id for pipeline in registry.pipelines}
+
+        self.assertEqual(registered - reviewed, {"dashboard_parity_daily"})
+        self.assertEqual(review.scope, "Databricks jobs with a run in the last 7 days")
+
+    def test_a_claim_can_cite_a_run_the_workspace_has_no_record_of(self) -> None:
+        review = loader.load_agent_review(SUPPLIED_FIXTURES)
+        runs = loader.load_runs_log(SUPPLIED_FIXTURES)
+        by_id = {claim.id: claim for claim in review.claims}
+
+        recorded = {run.run_id for run in runs.runs}
+        cited = [evidence.run_id for evidence in by_id["C3"].evidence]
+
+        self.assertEqual(cited, [882174, 882177])
+        self.assertIn(882174, recorded)
+        self.assertNotIn(882177, recorded)
+
+    def test_a_claim_citing_a_single_run_without_naming_it_is_refused(self) -> None:
+        unnamed = {"type": "run"}
+
+        with self.assertRaises(KeyError):
+            loader.parse_claim_evidence(unnamed)
+
+    def test_a_claim_citing_evidence_of_a_kind_the_pack_does_not_document_is_refused(self) -> None:
+        hearsay = {"type": "dashboard", "url": "https://example.invalid/graph"}
+
+        with self.assertRaises(ValueError):
+            loader.parse_claim_evidence(hearsay)
 
 
 if __name__ == "__main__":
