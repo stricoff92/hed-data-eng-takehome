@@ -1,6 +1,6 @@
 # Morning Rounds
 
-Time spent: ~4 hours.
+Time spent: 4 hours.
 
 ## Running it
 
