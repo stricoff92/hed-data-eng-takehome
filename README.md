@@ -17,6 +17,14 @@ inside the fixture pack is refused, because the pack is read-only.
 "Now" is `captured_at` from `workspace/manifest.json`. `--as-of TIMESTAMP` overrides it, and must
 carry a timezone and not predate the snapshot, which would report negative ages.
 
+
+## Running the tests
+
+```
+python3 -m unittest discover -v
+```
+
+
 ## How it is put together
 
 ```
@@ -68,11 +76,7 @@ in the loader before any disk read, so a pipeline whose evidence is missing come
 - **Fixture validation.** A malformed pack raises from the loader with the file named, rather than
   being validated up front.
 
-## Running the tests
 
-```
-python3 -m unittest discover -v
-```
 
 ## Type checking
 
