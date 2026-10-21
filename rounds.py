@@ -11,8 +11,8 @@ import argparse
 import logging
 import sys
 import time
+from io import TextIOWrapper
 from pathlib import Path
-from typing import TextIO
 
 from morning_rounds.constants import APP_LOGGER_NAME
 
@@ -34,8 +34,8 @@ logger = logging.getLogger(APP_LOGGER_NAME)
 class Utf8LineFeedFileHandler(logging.FileHandler):
     # logging.FileHandler cannot be given a newline, so on Windows it would
     # rewrite every "\n" as CRLF.
-    def _open(self) -> TextIO:
-        return open(self.baseFilename, self.mode, encoding="utf-8", newline="\n")
+    def _open(self) -> TextIOWrapper:
+        return open(self.baseFilename, "a", encoding="utf-8", newline="\n")
 
 
 def configure_logging() -> None:
@@ -49,7 +49,7 @@ def configure_logging() -> None:
     # The fixtures timestamp everything in UTC, so the logs read against them
     # without a mental offset.
     formatter.converter = time.gmtime
-    handler = Utf8LineFeedFileHandler(LOG_DIRECTORY / LOG_FILE_NAME, mode="a")
+    handler = Utf8LineFeedFileHandler(LOG_DIRECTORY / LOG_FILE_NAME)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)
@@ -57,10 +57,10 @@ def configure_logging() -> None:
 
 def configure_streams() -> None:
     # Windows writes stdout in the console code page and rewrites "\n" as CRLF,
-    # which corrupts machine-readable output. Tests swap in streams that have no
-    # reconfigure(), hence the guard.
+    # which corrupts machine-readable output. Only a real TextIOWrapper can be
+    # reconfigured; the tests capture output with StringIO, which cannot.
     for stream in (sys.stdout, sys.stderr):
-        if hasattr(stream, "reconfigure"):
+        if isinstance(stream, TextIOWrapper):
             stream.reconfigure(encoding="utf-8", newline="\n")
 
 

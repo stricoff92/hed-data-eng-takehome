@@ -16,13 +16,16 @@ setup logging
 
 git repoo setup (local + private remote), i will send Dan a zip
 
-vscode python extension setup
+vscode python extension setup (ms-python)
 
 stub testing, mock data?
     no mock data. cli flow : load -> parse -> logic
                   test flow: test_data -> logic
 
+Do we need mypy?
+    no, pylance can do this in vscode with "python.analysis.typeCheckingMode": "strict"
 
+Test pylance: it's actually not working. install and configure basedpyright because codium doesnt work with pylance
 
 
 
