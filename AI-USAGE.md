@@ -40,4 +40,4 @@
 - --as-of before the snapshot yields negative data ages
 - bad formatting in report.md
 - initial stub written by claude required a `pip install`
-- It recommended the Pylance extension for type checking and wrote the matching. I use VSCodium, where Pylance is unavailable, so the setting did nothing. Switched to basedpyright.
+
