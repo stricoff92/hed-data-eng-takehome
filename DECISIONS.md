@@ -24,11 +24,17 @@ What you would do with another day, in priority order.
  - unit tests: `DATA` -> `logic`
  - e2e "smoke" tests: same as the cli, zero mocked data.
 
-## Should I leave Claude in Auto mode?
+## Should we leave Claude in Auto mode?
  - YES, because
    - 2 to 4 hour time constraint
    - git is in place as a backup
    - relatively low stakes (no one is going to die or lose $ 10M)
    - the chance of a claude induced disaster is low
    - claude settings protect certain files
-   - I expect claude will understand the project without issues
+   - I expect claude will understand the project very clearly
+
+## Do we validate the fixture files?
+ - no, out of scope
+
+
+

@@ -1,0 +1,11 @@
+
+  Per pipeline, in this order:
+
+  1. pipeline.job → find in workspace/jobs.json. Missing = broken. Found = compare settings to repo/databricks/jobs/<job>.json → drift. Check schedule.pause_status.
+  2. job_id → runs.jsonl. Group attempts by run_id, latest attempt wins. Did it run on cadence? Did it fail?
+  3. For each table in pipeline.writes[] → check manifest.json first. This is a gate, not a lookup: status: "error" means stop, emit unmeasured, cite the manifest line. Never touch
+     disk for that table.
+  4. Gate passed → history.jsonl. Filter to data-changing ops (WRITE/MERGE/CREATE OR REPLACE, drop OPTIMIZE). Newest one's timestamp vs as-of = data age. Compare to
+     freshness_slo_hours.
+  5. Governed table → schema.json vs repo/contracts/<x>.json.
+  6. Any finding → lineage.json for blast radius.

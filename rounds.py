@@ -14,21 +14,24 @@ import time
 from io import TextIOWrapper
 from pathlib import Path
 
-from morning_rounds.constants import APP_LOGGER_NAME
+from morning_rounds import (
+    constants,
+    drift,
+    loader,
+)
 
 EXIT_OK = 0
+EXIT_ERROR = 1
 EXIT_USAGE = 2
 
 COMMAND_CHECK = "check"
-
-MANIFEST_RELATIVE_PATH = Path("workspace") / "manifest.json"
 
 LOG_DIRECTORY = Path(__file__).resolve().parent / "logs"
 LOG_FILE_NAME = "rounds.log"
 LOG_MESSAGE_FORMAT = "%(asctime)s %(levelname)s %(module)s %(message)s"
 LOG_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
-logger = logging.getLogger(APP_LOGGER_NAME)
+logger = logging.getLogger(constants.APP_LOGGER_NAME)
 
 
 class Utf8LineFeedFileHandler(logging.FileHandler):
@@ -70,7 +73,7 @@ def write_output_line(message: str) -> None:
 
 def write_error_line(message: str) -> None:
     logger.error(message)
-    print(f"{APP_LOGGER_NAME}: {message}", file=sys.stderr, flush=True)
+    print(f"{constants.APP_LOGGER_NAME}: {message}", file=sys.stderr, flush=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -123,11 +126,10 @@ def run_check(arguments: argparse.Namespace) -> int:
         write_error_line("pass --fixtures DIR to point at it.")
         return EXIT_USAGE
 
-    manifest = fixtures / MANIFEST_RELATIVE_PATH
-    if not manifest.is_file():
+    if not loader.is_fixture_pack(fixtures):
         write_error_line(
             f"{fixtures} is not a fixture pack: "
-            f"{MANIFEST_RELATIVE_PATH} is missing."
+            f"{loader.MANIFEST_RELATIVE_PATH} is missing."
         )
         return EXIT_USAGE
 
@@ -144,7 +146,28 @@ def run_check(arguments: argparse.Namespace) -> int:
     logger.info("as-of: %s", arguments.as_of or "unset, reading captured_at from manifest")
     logger.info("output directory: %s", output_directory)
 
-    write_output_line("stub, no checks implemented yet.")
+    try:
+        registry = loader.load_pipeline_registry(fixtures)
+        definitions = loader.load_job_definitions(fixtures)
+        deployed = loader.load_jobs_snapshot(fixtures)
+    except loader.FixtureError as error:
+        write_error_line(str(error))
+        write_error_line("pass --fixtures DIR to point at the fixture pack.")
+        return EXIT_ERROR
+
+    write_output_line(
+        f"{loader.PIPELINES_RELATIVE_PATH.as_posix()}: registry version {registry.version}, "
+        f"{len(registry.pipelines)} pipelines"
+    )
+    write_output_line(
+        f"{loader.JOB_DEFINITIONS_RELATIVE_PATH.as_posix()}/: {len(definitions)} job definitions"
+    )
+    write_output_line(f"{loader.JOBS_RELATIVE_PATH.as_posix()}: {len(deployed.jobs)} deployed jobs")
+
+    drift_findings = drift.find_drift(definitions, deployed)
+    write_output_line(f"drift: {len(drift_findings)} findings")
+    for finding in drift_findings:
+        write_output_line(f"  {finding.subject}: {finding.code}")
     return EXIT_OK
 
 
@@ -152,7 +175,15 @@ def main(argv: list[str] | None = None) -> int:
     configure_streams()
     configure_logging()
     arguments = build_parser().parse_args(argv)
-    return arguments.handler(arguments)
+
+    # A fixture that does not have its documented shape reaches us as a KeyError or a TypeError
+    # from deep inside a loader. Crash, but leave the traceback somewhere a reader can find it.
+    try:
+        return arguments.handler(arguments)
+    except Exception:
+        logger.exception("rounds failed")
+        write_error_line(f"unexpected failure. the traceback is in {LOG_DIRECTORY / LOG_FILE_NAME}")
+        return EXIT_ERROR
 
 
 if __name__ == "__main__":
