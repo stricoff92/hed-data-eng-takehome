@@ -25,7 +25,8 @@ stub testing, mock data?
 Do we need mypy?
     no, pylance can do this in vscode with "python.analysis.typeCheckingMode": "strict"
 
-Test pylance: it's actually not working. install and configure basedpyright because codium doesnt work with pylance
+type checking: it's not working.
+    install and configure basedpyright because codium doesnt work with pylance
 
 
 
