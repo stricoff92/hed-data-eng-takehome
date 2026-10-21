@@ -10,10 +10,6 @@ from morning_rounds import models
 
 GIT_IS_THE_SOURCE_OF_TRUTH = "repo/docs/platform-standards.md:5-11"
 
-JOB_NOT_IN_GIT = "job_deployed_without_a_git_definition"
-JOB_NOT_DEPLOYED = "git_definition_not_deployed"
-JOB_SETTINGS_DIFFER = "deployed_settings_differ_from_git"
-
 # Distinguishes "the field holds null" from "the field is not there at all", which are different
 # kinds of drift and must not collapse into each other.
 ABSENT = object()
@@ -56,7 +52,7 @@ def settings_differences(
 def undeclared_job_finding(job: models.Job, source: str) -> models.Finding:
     where = f"{source}: job_id {job.job_id}"
     return models.Finding(
-        code=JOB_NOT_IN_GIT,
+        code=models.FindingCode.JOB_NOT_IN_GIT,
         subject=job.name,
         what=f"job {job.name} is deployed in the workspace and is not defined in Git",
         why=f"it was last changed by {job.last_modified_by} at {job.last_modified_at}, and no file in "
@@ -72,7 +68,7 @@ def undeclared_job_finding(job: models.Job, source: str) -> models.Finding:
 
 def undeployed_definition_finding(definition: models.JobDefinition) -> models.Finding:
     return models.Finding(
-        code=JOB_NOT_DEPLOYED,
+        code=models.FindingCode.JOB_NOT_DEPLOYED,
         subject=definition.name,
         what=f"job {definition.name} is defined in Git and is not deployed in the workspace",
         why="inference: either the definition was never deployed or the job was deleted from the "
@@ -100,7 +96,7 @@ def settings_drift_finding(
 
     fields = ", ".join(field for field, _, _ in differences)
     return models.Finding(
-        code=JOB_SETTINGS_DIFFER,
+        code=models.FindingCode.JOB_SETTINGS_DIFFER,
         subject=job.name,
         what=f"the deployed settings for {job.name} differ from Git: {fields}",
         why=f"the workspace is a deployment target, not an editing surface. {job.last_modified_by} "

@@ -15,8 +15,7 @@
    the brief rejects any reason a reviewer cannot check against a file
  - always pass encoding="utf-8" and newline="\n" when writing to stdout/stderr
  - script outputs go to stdout
- - errors go to stderr and logs/
- - debug/info text goes to logs/
+ - errors and diagnostics go to stderr. there is no log file
  - never use wildcard imports (`from module import *`). Naming what you import is fine:
    `from pathlib import Path` is correct, `from pathlib import *` is not
  - alphabetize python imports. standard module first, one vertical space, app imports second.

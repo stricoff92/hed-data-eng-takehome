@@ -37,4 +37,7 @@ What you would do with another day, in priority order.
  - no, out of scope
 
 
+## Do we check for drift between the cron format and the cadence string format (pipeline.json vs databrick)
+ - no, claude spot checked and said they match
+
 

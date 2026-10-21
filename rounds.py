@@ -16,6 +16,7 @@ from morning_rounds import (
     constants,
     drift,
     loader,
+    models,
 )
 
 EXIT_OK = 0
@@ -109,14 +110,25 @@ def run_check(arguments: argparse.Namespace) -> int:
         return EXIT_USAGE
 
     try:
+        manifest = loader.load_manifest(fixtures)
         registry = loader.load_pipeline_registry(fixtures)
         definitions = loader.load_job_definitions(fixtures)
         deployed = loader.load_jobs_snapshot(fixtures)
+        runs = loader.load_runs_log(fixtures)
     except loader.FixtureError as error:
         write_error_line(str(error))
         write_error_line("pass --fixtures DIR to point at the fixture pack.")
         return EXIT_ERROR
 
+    as_of: str = arguments.as_of or manifest.captured_at
+    unreadable = tuple(
+        file for file in manifest.files if file.status is models.CaptureStatus.ERROR
+    )
+    write_output_line(
+        f"{manifest.source}: captured by {manifest.captured_by}, {len(manifest.files)} files, "
+        f"{len(unreadable)} the snapshot could not read"
+    )
+    write_output_line(f"as of {as_of}")
     write_output_line(
         f"{loader.PIPELINES_RELATIVE_PATH.as_posix()}: registry version {registry.version}, "
         f"{len(registry.pipelines)} pipelines"
@@ -125,6 +137,10 @@ def run_check(arguments: argparse.Namespace) -> int:
         f"{loader.JOB_DEFINITIONS_RELATIVE_PATH.as_posix()}/: {len(definitions)} job definitions"
     )
     write_output_line(f"{loader.JOBS_RELATIVE_PATH.as_posix()}: {len(deployed.jobs)} deployed jobs")
+    write_output_line(
+        f"{loader.RUNS_RELATIVE_PATH.as_posix()}: {len(runs.runs)} runs, "
+        f"{sum(len(run.attempts) for run in runs.runs)} attempts"
+    )
 
     drift_findings = drift.find_drift(definitions, deployed)
     write_output_line(f"drift: {len(drift_findings)} findings")
@@ -136,8 +152,9 @@ def run_check(arguments: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     configure_streams()
     arguments = build_parser().parse_args(argv)
-    # A fixture that does not have its documented shape reaches us as a KeyError from deep inside a
-    # loader. Nothing here can handle that, so it propagates: traceback to stderr, exit code 1.
+    # A fixture that does not have its documented shape reaches us from deep inside a loader, as a
+    # KeyError for a missing field or a ValueError for a value outside the vocabulary models
+    # declares. Nothing here can handle that, so it propagates: traceback to stderr, exit code 1.
     return arguments.handler(arguments)
 
 

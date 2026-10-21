@@ -174,7 +174,7 @@ class DriftTest(unittest.TestCase):
         )
 
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].code, drift.JOB_SETTINGS_DIFFER)
+        self.assertEqual(findings[0].code, models.FindingCode.JOB_SETTINGS_DIFFER)
         self.assertIn("schedule.pause_status", findings[0].what)
         self.assertIn('repo/databricks/jobs/a_job.json: schedule.pause_status = "UNPAUSED"',
                       findings[0].evidence)
@@ -221,7 +221,7 @@ class DriftTest(unittest.TestCase):
         findings = drift.find_drift((), deployed("a_backfill", {"name": "a_backfill"}, AN_ENGINEER))
 
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].code, drift.JOB_NOT_IN_GIT)
+        self.assertEqual(findings[0].code, models.FindingCode.JOB_NOT_IN_GIT)
         self.assertIn(AN_ENGINEER, findings[0].why)
         self.assertIn("workspace/jobs.json: job_id 1001, git_source absent", findings[0].evidence)
 
@@ -235,8 +235,13 @@ class DriftTest(unittest.TestCase):
         findings = drift.find_drift((declared_in_git("a_job", {"name": "a_job"}),), empty_workspace)
 
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].code, drift.JOB_NOT_DEPLOYED)
+        self.assertEqual(findings[0].code, models.FindingCode.JOB_NOT_DEPLOYED)
         self.assertIn("inference", findings[0].why)
+
+    def test_a_finding_code_reaches_the_report_as_its_documented_slug_not_its_member_name(self) -> None:
+        finding = drift.undeployed_definition_finding(declared_in_git("a_job", {"name": "a_job"}))
+
+        self.assertEqual(f"{finding.code}", "git_definition_not_deployed")
 
     def test_every_finding_cites_the_standard_it_is_held_to(self) -> None:
         findings = drift.find_drift(
@@ -259,7 +264,7 @@ class SuppliedSnapshotDriftTest(unittest.TestCase):
         self.assertEqual(len(findings), 3)
 
         # Paused by hand nine days ago, so the parity check has not run since.
-        self.assertEqual(by_subject["dashboard_parity_daily"].code, drift.JOB_SETTINGS_DIFFER)
+        self.assertEqual(by_subject["dashboard_parity_daily"].code, models.FindingCode.JOB_SETTINGS_DIFFER)
 
         # Downgraded by hand to a node family the platform standards forbid.
         self.assertIn(
@@ -268,7 +273,7 @@ class SuppliedSnapshotDriftTest(unittest.TestCase):
         )
 
         # A second writer to the meeting_segments table that Git has never heard of.
-        self.assertEqual(by_subject["mm_segments_backfill"].code, drift.JOB_NOT_IN_GIT)
+        self.assertEqual(by_subject["mm_segments_backfill"].code, models.FindingCode.JOB_NOT_IN_GIT)
 
 
 if __name__ == "__main__":
