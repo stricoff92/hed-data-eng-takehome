@@ -1,4 +1,8 @@
-"""Morning rounds: what is actually true about each pipeline, and whether the
+"""
+
+Script Entry Point
+
+Morning rounds: what is actually true about each pipeline, and whether the
 agent's overnight review agrees. Run as `python3 rounds.py check --fixtures DIR`."""
 
 from __future__ import annotations
@@ -35,6 +39,11 @@ class Utf8LineFeedFileHandler(logging.FileHandler):
 
 
 def configure_logging() -> None:
+    # main() may run more than once in a single process, which the tests do.
+    # Without this the handler is attached again and every line is duplicated.
+    if logger.handlers:
+        return
+
     LOG_DIRECTORY.mkdir(parents=True, exist_ok=True)
     formatter = logging.Formatter(LOG_MESSAGE_FORMAT, datefmt=LOG_TIMESTAMP_FORMAT)
     # The fixtures timestamp everything in UTC, so the logs read against them

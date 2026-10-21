@@ -8,12 +8,17 @@
  - Script should work on Mac / Linux / Windows
  - target Python 3.11 or newer
  - use pathlib over os.path
+ - all file reading lives in the loader. Rules take parsed data, never paths,
+   so they can be tested with literal inputs and never need mocking
+ - findings must carry their provenance (file and line, run id, or table version):
+   the brief rejects any reason a reviewer cannot check against a file
  - always pass encoding="utf-8" and newline="\n" when writing to stdout/stderr
  - script outputs go to stdout
  - errors go to stderr and logs/
  - debug/info text goes to logs/
- - never run `from module import *`, always use namespaces
- - alphabatize python imports. standard module first, one vertical space, app imports second.
+ - never use wildcard imports (`from module import *`). Naming what you import is fine:
+   `from pathlib import Path` is correct, `from pathlib import *` is not
+ - alphabetize python imports. standard module first, one vertical space, app imports second.
 
 # Terseness
 Creating thick abstractions for the sake of extensibility or OOP correctness is not worth it. Solve problems with the simplest, most readable, terse code possible. A human will help highlight verboseness issues when it pops up.
@@ -21,6 +26,7 @@ Creating thick abstractions for the sake of extensibility or OOP correctness is 
 # code style:
  - four space indentation
  - always use type annotations for function signatures
+ - maximum line length is 110 characters
 
 # clean code:
 - Code Readability must be maintained
@@ -31,19 +37,20 @@ Creating thick abstractions for the sake of extensibility or OOP correctness is 
 - Always follow defensive coding patterns:
 ```python
 # BAD
-if status == STATUS_HEALTHY:
-    publish(status)
+if foo == bar:
+    foobar()
 else:
-    publish(status)
+    foobaz()
 
 # GOOD
-if status == STATUS_HEALTHY:
-    publish(status)
-elif status == STATUS_DEGRADED:
-    publish(status)
+if foo == bar:
+    foobar()
+elif foo == baz:
+    foobaz()
 else:
-    raise NotImplementedError(f"unhandled status: {status}")
+    raise NotImplementedError(f"unhandled foo: {foo}")
 ```
+
 - Do not let errors pass silently. If the error is fatal, log the traceback and crash the program. If the error can be handled: handle it. If it cannot be handled and it's not fatal: log it.
 - Do not use abbreviations, unless the object is locally scoped. even when locally scoped prefer to avoid abbreviations
 - No magic numbers, or magic string. Use constants, enums.

@@ -12,8 +12,17 @@ Claude checks for best way to stub script entry point, considering user environm
 
 Wrote claude.md
 
-setup logging, data output to stdout/stderr
+setup logging
 
 git repoo setup (local + private remote), i will send Dan a zip
+
+vscode python extension setup
+
+stub testing, mock data?
+    no mock data. cli flow : load -> parse -> logic
+                  test flow: test_data -> logic
+
+
+
 
 
