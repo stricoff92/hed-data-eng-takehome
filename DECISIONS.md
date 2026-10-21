@@ -14,7 +14,7 @@ What you would do with another day, in priority order.
 
 
 ## What kind of static type checking should I use for python?
-- A python package like mypy that's part of the repo is robust.
+- A python package like `mypy` or an IDE extension.
 - I decided to use an IDE extension (not part of the repo) in order to satisfy contraints in the brief (checkout then run), and to get the project running ASAP.
 
 ## what data model does the tool use? How are tests structured
@@ -22,3 +22,11 @@ What you would do with another day, in priority order.
  - unit tests: `DATA` -> `logic`
  - e2e "smoke" tests: same as the cli, zero mocked data.
 
+## Should I leave Claude in Auto mode?
+ - YES, because
+   - 2 to 4 hour time constraint
+   - git is in place as a backup
+   - relatively low stakes (no one is going to die or lose $ 10M)
+   - the chance of a claude induced disaster is low
+   - claude settings protect certain files
+   - I expect claude will understand the project without issues
