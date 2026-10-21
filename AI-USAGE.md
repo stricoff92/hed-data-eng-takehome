@@ -15,7 +15,7 @@
 
 
 ## What I kept for myself
-- entries in `DEV-LOG.md`
+- entries in `DECISIONS.md`
 - git add/commit/push
 - repo layout
 - tooling choices (claude model, IDE setup)

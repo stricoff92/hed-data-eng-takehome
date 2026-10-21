@@ -8,15 +8,18 @@
     "deny": [
       "Edit(takehome-packet)",
       "Edit(takehome-packet/**)",
-      "Edit(DEV-LOG.md)",
-      "Edit(**/DEV-LOG.md)"
+      "Edit(DECISIONS.md)",
+      "Edit(**/DECISIONS.md)",
+      "Edit(AI-USAGE.md)",
+      "Edit(**/AI-USAGE.md)"
     ]
   },
   "sandbox": {
     "filesystem": {
       "denyWrite": [
         "takehome-packet",
-        "DEV-LOG.md"
+        "DECISIONS.md",
+        "AI-USAGE.md"
       ]
     }
   }
