@@ -11,7 +11,9 @@
       "Edit(DECISIONS.md)",
       "Edit(**/DECISIONS.md)",
       "Edit(AI-USAGE.md)",
-      "Edit(**/AI-USAGE.md)"
+      "Edit(**/AI-USAGE.md)",
+      "Edit(.claude/settings.json)",
+      "Edit(**/.claude/settings.json)"
     ]
   },
   "sandbox": {
@@ -19,7 +21,8 @@
       "denyWrite": [
         "takehome-packet",
         "DECISIONS.md",
-        "AI-USAGE.md"
+        "AI-USAGE.md",
+        ".claude/settings.json"
       ]
     }
   }

@@ -12,6 +12,8 @@ What you would do with another day, in priority order.
 ```
 
 
+## Least Sure
+
 
 ## What kind of static type checking should I use for python?
 - A python package like `mypy` or an IDE extension.
