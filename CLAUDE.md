@@ -3,6 +3,7 @@
 
 # Rules:
  - `takehome-packet/` is readonly. claude settings should enforce this.
+ - Do not write any high level parts until directed. The user will carve up the code writing and ask you to implement parts.
  - testing should use unittest module.
  - No third-party libraries.
  - Script should work on Mac / Linux / Windows
