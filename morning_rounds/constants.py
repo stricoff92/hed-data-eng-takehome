@@ -1,3 +1,3 @@
 """Values shared across modules."""
 
-APP_LOGGER_NAME = "rounds"
+APP_NAME = "rounds"

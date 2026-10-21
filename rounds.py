@@ -8,9 +8,7 @@ agent's overnight review agrees. Run as `python3 rounds.py check --fixtures DIR`
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
-import time
 from io import TextIOWrapper
 from pathlib import Path
 
@@ -25,37 +23,6 @@ EXIT_ERROR = 1
 EXIT_USAGE = 2
 
 COMMAND_CHECK = "check"
-
-LOG_DIRECTORY = Path(__file__).resolve().parent / "logs"
-LOG_FILE_NAME = "rounds.log"
-LOG_MESSAGE_FORMAT = "%(asctime)s %(levelname)s %(module)s %(message)s"
-LOG_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-
-logger = logging.getLogger(constants.APP_LOGGER_NAME)
-
-
-class Utf8LineFeedFileHandler(logging.FileHandler):
-    # logging.FileHandler cannot be given a newline, so on Windows it would
-    # rewrite every "\n" as CRLF.
-    def _open(self) -> TextIOWrapper:
-        return open(self.baseFilename, "a", encoding="utf-8", newline="\n")
-
-
-def configure_logging() -> None:
-    # main() may run more than once in a single process, which the tests do.
-    # Without this the handler is attached again and every line is duplicated.
-    if logger.handlers:
-        return
-
-    LOG_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    formatter = logging.Formatter(LOG_MESSAGE_FORMAT, datefmt=LOG_TIMESTAMP_FORMAT)
-    # The fixtures timestamp everything in UTC, so the logs read against them
-    # without a mental offset.
-    formatter.converter = time.gmtime
-    handler = Utf8LineFeedFileHandler(LOG_DIRECTORY / LOG_FILE_NAME)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
 
 
 def configure_streams() -> None:
@@ -72,8 +39,7 @@ def write_output_line(message: str) -> None:
 
 
 def write_error_line(message: str) -> None:
-    logger.error(message)
-    print(f"{constants.APP_LOGGER_NAME}: {message}", file=sys.stderr, flush=True)
+    print(f"{constants.APP_NAME}: {message}", file=sys.stderr, flush=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -142,10 +108,6 @@ def run_check(arguments: argparse.Namespace) -> int:
         )
         return EXIT_USAGE
 
-    logger.info("fixtures: %s", fixtures)
-    logger.info("as-of: %s", arguments.as_of or "unset, reading captured_at from manifest")
-    logger.info("output directory: %s", output_directory)
-
     try:
         registry = loader.load_pipeline_registry(fixtures)
         definitions = loader.load_job_definitions(fixtures)
@@ -173,17 +135,10 @@ def run_check(arguments: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     configure_streams()
-    configure_logging()
     arguments = build_parser().parse_args(argv)
-
-    # A fixture that does not have its documented shape reaches us as a KeyError or a TypeError
-    # from deep inside a loader. Crash, but leave the traceback somewhere a reader can find it.
-    try:
-        return arguments.handler(arguments)
-    except Exception:
-        logger.exception("rounds failed")
-        write_error_line(f"unexpected failure. the traceback is in {LOG_DIRECTORY / LOG_FILE_NAME}")
-        return EXIT_ERROR
+    # A fixture that does not have its documented shape reaches us as a KeyError from deep inside a
+    # loader. Nothing here can handle that, so it propagates: traceback to stderr, exit code 1.
+    return arguments.handler(arguments)
 
 
 if __name__ == "__main__":
