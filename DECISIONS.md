@@ -1,4 +1,5 @@
 
+# DECISIONS
 
 ## What kind of static type checking should I use for python?
 - A python package like mypy that's part of the repo is robust.
