@@ -1,0 +1,19 @@
+
+# A log of the steps I took to complete the assignment.
+
+
+Setup repo
+
+stubbed claude.md
+
+claude generated .claude/settings.json
+
+Claude checks for best way to stub script entry point, considering user environment (Windows?).
+
+Wrote claude.md
+
+setup logging, data output to stdout/stderr
+
+git repoo setup (local + private remote), i will send Dan a zip
+
+
