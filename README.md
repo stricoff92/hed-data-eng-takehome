@@ -1,24 +1,21 @@
 # Morning Rounds
 
+Time spent: ~4 hours.
+
 ## Running it
 
 ```
-python3 rounds.py check --fixtures takehome-packet/fixtures
+python3 rounds.py check
 ```
 
-On Windows, use `py rounds.py check --fixtures takehome-packet\fixtures`.
+`--fixtures` defaults to `takehome-packet/fixtures`. On Windows, use `py rounds.py check`.
 
-`--fixtures` already defaults to `takehome-packet/fixtures`, so plain
-`python3 rounds.py check` works from the repository root.
+Writes `report.json`, `report.md` and `telemetry.ndjson` to `--out` (default: the working
+directory) and a summary to stdout. Diagnostics go to stderr; there is no log file. An `--out`
+inside the fixture pack is refused, because the pack is read-only.
 
-It writes `report.json`, `report.md` and `telemetry.ndjson` into `--out` (default: the current
-directory) and prints a summary to stdout. Diagnostics go to stderr; there is no log file. The
-run is refused if `--out` points inside the fixture pack, which is read-only.
-
-"Now" is `captured_at` from `workspace/manifest.json`. `--as-of TIMESTAMP` overrides it, and has
-to carry a timezone and be no earlier than the snapshot: every age is measured against evidence
-the snapshot holds up to the instant it was captured, and this does not hide evidence to simulate
-an earlier morning.
+"Now" is `captured_at` from `workspace/manifest.json`. `--as-of TIMESTAMP` overrides it, and must
+carry a timezone and not predate the snapshot, which would report negative ages.
 
 ## How it is put together
 
@@ -37,39 +34,39 @@ FILES -> loader -> DATA -> rules -> report
 | `reconcile.py` | A verdict on every claim in the agent's review |
 | `report.py` | The three artifacts. Decides nothing |
 
-Rules take parsed data and never a path, so every branch is tested with literal inputs and
-nothing is mocked. `manifest.json` is the gate: a file it records as `error` becomes an
-unreadable marker in the loader, before any disk read, so a pipeline whose evidence is missing
-comes out **unmeasured** rather than crashing or being guessed at.
+Rules take parsed data and never a path, so every branch is tested with literal inputs and nothing
+is mocked. `manifest.json` is the gate: a file it records as `error` becomes an unreadable marker
+in the loader before any disk read, so a pipeline whose evidence is missing comes out
+**unmeasured** rather than crashing or being guessed at.
 
-Two choices worth knowing:
-
-- **Status precedence is `broken > unmeasured > degraded > healthy`** (`status.STATUS_PRECEDENCE`).
-  Reporting *degraded* asserts the data is fine for now, which missing evidence makes unknowable.
+- **Precedence is `broken > unmeasured > degraded > healthy`** (`status.STATUS_PRECEDENCE`).
+  *Degraded* asserts the data is fine for now, which missing evidence makes unknowable.
 - **A measured zero and an unmeasured one are different samples.** An unmeasured pipeline
-  publishes `pipeline_status` and no age or breach gauge at all, and only governed tables whose
-  schema could actually be read are counted in `schema_contract_violations`. A zero there means
-  checked and kept; silence means not checked.
+  publishes `pipeline_status` and no age or breach gauge, and `schema_contract_violations` counts
+  only tables whose schema could be read. Zero means checked and kept; silence means not checked.
 
 ## What I did not build
 
-- **Blast radius from `lineage.json`.** Findings cite files, versions and run ids, but do not yet
-  name the downstream tables and consumers affected. Two things follow from that gap. First,
-  `gold_dim_employees_daily` reads healthy: its own writes are fine, but it is built from a silver
-  table that has had no new data since 2026-10-17, so it serves stale workforce data to the
-  Staffing Report. Second, the contract finding on `gold.fact_project_financials` does not say
-  that `pbi-project-financials` reads both of the missing fields by name, which is in
-  `lineage.json` and is the fact a reader most needs.
-- **The contract's declared writers.** `contracts.py` compares columns only. A contract also
-  names the job allowed to write the table and with which statements, and that is not checked.
+- **`RUNBOOK.md` and `NOTICE.md`** (deliverables 6 and 7), and the buy-vs-build and sunset-trigger
+  sections of `DECISIONS.md`. I hit the time box with the tool, the reconciliation and the tests
+  done. The alert would have fired on `pipeline_slo_breach` and `pipeline_status`; the notice would
+  have covered `gold.fact_project_financials` dropping `net_fee` and `fee_currency`, which
+  Finance's report reads by name.
+- **Blast radius from `lineage.json`.** Findings cite files, versions and run ids, not the
+  downstream tables and consumers affected. So `gold_dim_employees_daily` reads healthy — its own
+  writes are fine, but its source silver table has had no new data since 2026-10-17, which leaves
+  the Staffing Report stale — and the contract finding on `gold.fact_project_financials` never says
+  that `pbi-project-financials` reads both missing fields by name.
+- **The contract's declared writers.** `contracts.py` compares columns only; a contract also names
+  the job allowed to write the table and with which statements.
 - **The concurrent-writer cause.** `mm_rapid_pipeline_30min` is reported as succeeding only on
-  retry; that the retries are caused by `mm_segments_backfill` (job 1188, no Git definition)
-  writing the same table on the same 30-minute cron is in the evidence but not in the rule.
-- **The expired credential.** `runbooks/workday-ingestion.md` dates the ISU password expiry to
-  2026-10-17, which is the day `workday_bronze_daily` started writing zero rows. The tool reports
-  the symptom with its evidence; it does not read runbooks, so it does not name that cause.
-- **Fixture validation.** Out of scope deliberately: a malformed pack raises from the loader with
-  the file named, rather than being validated up front.
+  retry. That `mm_segments_backfill` (job 1188, no Git definition) writes the same table on the
+  same 30-minute cron is in the evidence, not in the rule.
+- **The expired credential.** `runbooks/workday-ingestion.md` puts the ISU password expiry at
+  2026-10-17, the day `workday_bronze_daily` started writing zero rows. The tool reports the
+  symptom; it does not read runbooks, so it does not name the cause.
+- **Fixture validation.** A malformed pack raises from the loader with the file named, rather than
+  being validated up front.
 
 ## Running the tests
 
@@ -79,10 +76,8 @@ python3 -m unittest discover -v
 
 ## Type checking
 
-Annotations target **basedpyright strict**, set in `.vscode/settings.json`. The checker is
-not a project dependency; nothing needs installing to run `rounds` or the tests.
-
-To check from a shell, with the venv outside the repo:
+Annotations target **basedpyright strict**, set in the editor rather than the repo; the checker is
+not a project dependency. Clean under `strict`: 0 errors, 0 warnings. To reproduce:
 
 ```
 python3 -m venv /tmp/tc && /tmp/tc/bin/pip install basedpyright
@@ -90,6 +85,6 @@ printf '{"typeCheckingMode":"strict","include":["rounds.py","morning_rounds","te
 /tmp/tc/bin/basedpyright; rm pyrightconfig.json
 ```
 
-Clean under `strict`. The CLI defaults to `recommended`, which is stricter again and flags
-`reportAny` where JSON enters the program (`loader.read_json`, `Job.settings`) — deliberate:
-validating a read-only fixture pack buys nothing.
+The CLI default, `recommended`, reports 17 errors and 274 warnings I did not chase. 121 of the 160
+`reportAny` are in `loader.py`, where untyped JSON enters the program: validating a read-only
+fixture pack buys nothing. All 17 errors are uninitialised instance variables in test `setUp`.
