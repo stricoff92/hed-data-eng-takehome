@@ -1,0 +1,35 @@
+# AI usage
+
+## Tools
+
+- Claude Code (Opus 5), from the terminal.
+
+## What I delegated
+
+- cross-platform encoding details
+- coding/implementing features
+- the testing harness
+- writing tests
+- running the tests
+
+
+## What I kept for myself
+- repo layout
+- git
+- tooling choices (claude model, IDE setup)
+- app data model: `files` -> `data` -> `logic`
+- test data model `data` -> `logic`
+- entries in `DEV-LOG.md`
+- claude.md prose (mostly)
+- coding standards
+- reviewing type issues (these were invisible to claude (no cli for basedpyright))
+- "dev roadmap"
+
+## shared
+ - code review
+ - designing tests
+
+## What the tool got wrong that I caught
+
+- initial stub written by claude required a `pip install`
+- It recommended the Pylance extension for type checking and wrote the matching. I use VSCodium, where Pylance is unavailable, so the setting did nothing. Switched to basedpyright.

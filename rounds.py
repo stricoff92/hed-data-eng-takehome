@@ -70,7 +70,7 @@ def write_output_line(message: str) -> None:
 
 def write_error_line(message: str) -> None:
     logger.error(message)
-    print(message, file=sys.stderr, flush=True)
+    print(f"{APP_LOGGER_NAME}: {message}", file=sys.stderr, flush=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -119,14 +119,14 @@ def run_check(arguments: argparse.Namespace) -> int:
     output_directory: Path = arguments.out.resolve()
 
     if not fixtures.is_dir():
-        write_error_line(f"rounds: no fixture pack at {fixtures}")
-        write_error_line("rounds: pass --fixtures DIR to point at it.")
+        write_error_line(f"no fixture pack at {fixtures}")
+        write_error_line("pass --fixtures DIR to point at it.")
         return EXIT_USAGE
 
     manifest = fixtures / MANIFEST_RELATIVE_PATH
     if not manifest.is_file():
         write_error_line(
-            f"rounds: {fixtures} is not a fixture pack: "
+            f"{fixtures} is not a fixture pack: "
             f"{MANIFEST_RELATIVE_PATH} is missing."
         )
         return EXIT_USAGE
@@ -135,7 +135,7 @@ def run_check(arguments: argparse.Namespace) -> int:
     # output into it rather than trusting ourselves not to.
     if output_directory == fixtures or output_directory.is_relative_to(fixtures):
         write_error_line(
-            f"rounds: --out {output_directory} is inside the fixture pack; "
+            f"--out {output_directory} is inside the fixture pack; "
             f"the pack is read-only. Write the report somewhere else."
         )
         return EXIT_USAGE
@@ -144,7 +144,7 @@ def run_check(arguments: argparse.Namespace) -> int:
     logger.info("as-of: %s", arguments.as_of or "unset, reading captured_at from manifest")
     logger.info("output directory: %s", output_directory)
 
-    write_output_line("rounds: stub, no checks implemented yet.")
+    write_output_line("stub, no checks implemented yet.")
     return EXIT_OK
 
 

@@ -2,8 +2,6 @@
 
 ## Running it
 
-No install, no virtualenv, no third-party packages:
-
 ```
 python3 rounds.py check --fixtures takehome-packet/fixtures
 ```
