@@ -29,6 +29,7 @@
 ## shared
  - code review
  - designing tests
+ - Discovery: figuring out what all the fixtures mean
 
 
 ## What the tool got wrong that I caught

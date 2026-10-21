@@ -1,6 +1,18 @@
 
 # DECISIONS
 
+```
+Short — a page, maybe two. We are reading for judgement, not volume:
+
+The decisions you made and what you traded away for them.
+Triage order: it is 07:30. What do you fix first, second, third — and why in that order?
+Buy vs build: what you would not have written yourself on a real platform — Databricks-nativae options, third-party data-observability tools — and what each would cost you. Include a sunset trigger: the observation that would tell you this tool has outlived its design.
+The thing you are least sure about. One honest paragraph on where your judgement could be wrong, and what evidence would settle it. This section carries real weight with us.
+What you would do with another day, in priority order.
+```
+
+
+
 ## What kind of static type checking should I use for python?
 - A python package like mypy that's part of the repo is robust.
 - I decided to use an IDE extension (not part of the repo) in order to satisfy contraints in the brief (checkout then run), and to get the project running ASAP.
