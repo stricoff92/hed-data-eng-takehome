@@ -34,6 +34,10 @@
 
 ## What the tool got wrong that I caught
 
+- brittle handling of string formatted timestamps (sorting timestamps as strings)
+- unreadable function/class/variable names
+- --as-of with no timezone crashed. --as-of 2026-10-21T07:30:00 died with TypeError
+- --as-of before the snapshot yields negative data ages
+- bad formatting in report.md
 - initial stub written by claude required a `pip install`
 - It recommended the Pylance extension for type checking and wrote the matching. I use VSCodium, where Pylance is unavailable, so the setting did nothing. Switched to basedpyright.
-- brittle handling of string formatted timestamps (sorting timestamps as strings)
