@@ -8,15 +8,15 @@
     "deny": [
       "Edit(takehome-packet)",
       "Edit(takehome-packet/**)",
-      "Edit(dev-log.txt)",
-      "Edit(**/dev-log.txt)"
+      "Edit(DEV-LOG.md)",
+      "Edit(**/DEV-LOG.md)"
     ]
   },
   "sandbox": {
     "filesystem": {
       "denyWrite": [
         "takehome-packet",
-        "dev-log.txt"
+        "DEV-LOG.md"
       ]
     }
   }

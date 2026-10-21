@@ -4,6 +4,7 @@
 
 - Claude Code (Opus 5), from the terminal.
 
+
 ## What I delegated
 
 - cross-platform encoding details
@@ -14,12 +15,12 @@
 
 
 ## What I kept for myself
+- entries in `DEV-LOG.md`
+- git add/commit/push
 - repo layout
-- git
 - tooling choices (claude model, IDE setup)
 - app data model: `files` -> `data` -> `logic`
 - test data model `data` -> `logic`
-- entries in `DEV-LOG.md`
 - claude.md prose (mostly)
 - coding standards
 - reviewing type issues (these were invisible to claude (no cli for basedpyright))
@@ -28,6 +29,7 @@
 ## shared
  - code review
  - designing tests
+
 
 ## What the tool got wrong that I caught
 
