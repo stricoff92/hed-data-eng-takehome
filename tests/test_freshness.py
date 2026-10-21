@@ -18,7 +18,7 @@ def a_pipeline(writes: tuple[str, ...] = (A_TABLE,), slo_hours: float = 26) -> m
         cadence="daily 06:00 America/New_York",
         cadence_hours=24,
         freshness_slo_hours=slo_hours,
-        tier=models.Tier.BUSINESS_FACING,
+        tier=models.PipelineTier.BUSINESS_FACING,
         owner="data-platform",
         writes=writes,
         reads=(),
@@ -28,14 +28,14 @@ def a_pipeline(writes: tuple[str, ...] = (A_TABLE,), slo_hours: float = 26) -> m
 def a_commit(
     version: int,
     timestamp: str,
-    operation: models.Operation = models.Operation.WRITE,
+    operation: models.TableOperation = models.TableOperation.WRITE,
     rows: int = 1832,
     job_id: int = 1001,
 ) -> models.TableCommit:
-    if operation is models.Operation.MERGE:
+    if operation is models.TableOperation.MERGE:
         metrics = {"numSourceRows": rows, "numTargetRowsInserted": rows, "numTargetRowsUpdated": 0,
                    "numTargetRowsDeleted": 0, "numTargetRowsCopied": 0}
-    elif operation is models.Operation.OPTIMIZE:
+    elif operation is models.TableOperation.OPTIMIZE:
         metrics = {"numAddedFiles": 1, "numRemovedFiles": 10,
                    "numAddedBytes": 3493365, "numRemovedBytes": 6178887}
     else:
@@ -69,17 +69,17 @@ def a_history(
 
 class RefreshedDataTest(unittest.TestCase):
     def test_a_write_that_landed_rows_refreshed_the_table(self) -> None:
-        landed = a_commit(436, AS_OF, models.Operation.WRITE, rows=1832)
+        landed = a_commit(436, AS_OF, models.TableOperation.WRITE, rows=1832)
 
         self.assertTrue(freshness.refreshed_data(landed))
 
     def test_a_write_that_landed_no_rows_did_not_refresh_the_table_however_it_ended(self) -> None:
-        empty = a_commit(436, AS_OF, models.Operation.WRITE, rows=0)
+        empty = a_commit(436, AS_OF, models.TableOperation.WRITE, rows=0)
 
         self.assertFalse(freshness.refreshed_data(empty))
 
     def test_a_merge_handed_rows_refreshed_the_table_even_when_none_of_them_changed(self) -> None:
-        handed_rows = a_commit(1651, AS_OF, models.Operation.MERGE, rows=1832)
+        handed_rows = a_commit(1651, AS_OF, models.TableOperation.MERGE, rows=1832)
         unchanged = dataclasses.replace(
             handed_rows,
             metrics={**handed_rows.metrics, "numTargetRowsInserted": 0, "numTargetRowsUpdated": 0},
@@ -88,18 +88,18 @@ class RefreshedDataTest(unittest.TestCase):
         self.assertTrue(freshness.refreshed_data(unchanged))
 
     def test_a_merge_handed_no_rows_did_not_refresh_the_table_because_nothing_arrived(self) -> None:
-        handed_nothing = a_commit(1654, AS_OF, models.Operation.MERGE, rows=0)
+        handed_nothing = a_commit(1654, AS_OF, models.TableOperation.MERGE, rows=0)
 
         self.assertFalse(freshness.refreshed_data(handed_nothing))
 
     def test_maintenance_never_refreshes_a_table_however_many_files_it_rewrote(self) -> None:
-        optimised = a_commit(326, AS_OF, models.Operation.OPTIMIZE)
+        optimised = a_commit(326, AS_OF, models.TableOperation.OPTIMIZE)
 
         self.assertTrue(freshness.is_maintenance(optimised))
         self.assertFalse(freshness.refreshed_data(optimised))
 
     def test_asking_maintenance_for_a_row_count_is_refused_rather_than_answered_with_zero(self) -> None:
-        optimised = a_commit(326, AS_OF, models.Operation.OPTIMIZE)
+        optimised = a_commit(326, AS_OF, models.TableOperation.OPTIMIZE)
 
         with self.assertRaises(NotImplementedError):
             freshness.rows_arrived(optimised)
@@ -130,7 +130,7 @@ class FreshnessFindingsTest(unittest.TestCase):
 
     def test_a_table_whose_newest_commit_is_maintenance_is_aged_from_its_last_real_write(self) -> None:
         history = a_history((
-            a_commit(326, "2026-10-19T03:07:00Z", models.Operation.OPTIMIZE, job_id=1099),
+            a_commit(326, "2026-10-19T03:07:00Z", models.TableOperation.OPTIMIZE, job_id=1099),
             a_commit(325, "2026-10-11T08:08:00Z", rows=143),
         ))
 
@@ -186,8 +186,8 @@ class FreshnessFindingsTest(unittest.TestCase):
 
     def test_a_table_only_ever_maintained_has_no_refresh_to_measure_from(self) -> None:
         history = a_history((
-            a_commit(326, "2026-10-19T03:07:00Z", models.Operation.OPTIMIZE, job_id=1099),
-            a_commit(325, "2026-10-18T03:07:00Z", models.Operation.OPTIMIZE, job_id=1099),
+            a_commit(326, "2026-10-19T03:07:00Z", models.TableOperation.OPTIMIZE, job_id=1099),
+            a_commit(325, "2026-10-18T03:07:00Z", models.TableOperation.OPTIMIZE, job_id=1099),
         ))
 
         findings = freshness.find_freshness(a_pipeline(), history, AS_OF)
@@ -202,6 +202,21 @@ class FreshnessFindingsTest(unittest.TestCase):
         self.assertEqual([finding.code for finding in findings],
                          [models.FindingCode.TABLE_NEVER_REFRESHED])
         self.assertIn("no versions", findings[0].why)
+
+    def test_a_history_the_snapshot_wrote_out_of_order_is_still_read_newest_first(self) -> None:
+        # Delta versions are monotonic, so they decide which commit is newest, not the file order.
+        out_of_order = a_history((
+            a_commit(433, "2026-10-17T10:06:10Z", rows=1832),
+            a_commit(436, "2026-10-20T10:06:03Z", rows=0),
+            a_commit(435, "2026-10-19T10:05:34Z", rows=0),
+        ))
+
+        findings = freshness.find_freshness(a_pipeline(), out_of_order, AS_OF)
+
+        self.assertEqual([finding.code for finding in findings],
+                         [models.FindingCode.TABLE_WROTE_NOTHING,
+                          models.FindingCode.TABLE_OLDER_THAN_SLO])
+        self.assertTrue(any("v436 WRITE" in line for line in findings[0].evidence))
 
     def test_every_finding_names_the_pipeline_it_belongs_to_not_the_table(self) -> None:
         history = a_history((a_commit(325, "2026-10-11T08:08:00Z"),))

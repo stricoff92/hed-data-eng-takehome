@@ -7,7 +7,7 @@ from morning_rounds import models
 GOVERNED_TABLE_STANDARD = "repo/docs/platform-standards.md:35-39"
 
 
-def describe_column(column: models.Column | None) -> str:
+def describe_column(column: models.TableColumn | None) -> str:
     if column is None:
         return "absent"
 
@@ -17,11 +17,11 @@ def describe_column(column: models.Column | None) -> str:
 def promised_but_not_deployed(
     contract: models.Contract,
     schema: models.TableSchema,
-) -> tuple[tuple[models.Column, models.Column | None], ...]:
+) -> tuple[tuple[models.TableColumn, models.TableColumn | None], ...]:
     # Compared on name, type and nullability only. A contract column may also carry a note, which
     # documents the column for a reader and is not part of what the table has to deploy.
     deployed = {column.name: column for column in schema.columns}
-    broken: list[tuple[models.Column, models.Column | None]] = []
+    broken: list[tuple[models.TableColumn, models.TableColumn | None]] = []
     for promised in contract.columns:
         found = deployed.get(promised.name)
         if found is None or (found.type, found.nullable) != (promised.type, promised.nullable):
@@ -33,7 +33,7 @@ def promised_but_not_deployed(
 def deployed_but_not_promised(
     contract: models.Contract,
     schema: models.TableSchema,
-) -> tuple[models.Column, ...]:
+) -> tuple[models.TableColumn, ...]:
     promised = {column.name for column in contract.columns}
     return tuple(column for column in schema.columns if column.name not in promised)
 
@@ -62,7 +62,7 @@ def contract_broken_finding(
     contract: models.Contract,
     schema: models.TableSchema,
     subject: str,
-    broken: tuple[tuple[models.Column, models.Column | None], ...],
+    broken: tuple[tuple[models.TableColumn, models.TableColumn | None], ...],
 ) -> models.Finding:
     evidence: list[str] = []
     for promised, found in broken:
@@ -90,7 +90,7 @@ def contract_exceeded_finding(
     contract: models.Contract,
     schema: models.TableSchema,
     subject: str,
-    undeclared: tuple[models.Column, ...],
+    undeclared: tuple[models.TableColumn, ...],
 ) -> models.Finding:
     evidence = [f"{schema.source}: {column.name} = {describe_column(column)}, not in the contract"
                 for column in undeclared]
@@ -111,7 +111,7 @@ def contract_exceeded_finding(
     )
 
 
-def find_contract_drift(
+def find_contract_drift_in_table(
     contract: models.Contract,
     schema: models.TableSchema,
     subject: str,
@@ -140,7 +140,7 @@ def writing_job(registry: models.PipelineRegistry, table: str) -> str:
     return written_by.get(table, table)
 
 
-def find_all_contract_drift(
+def find_contract_drift(
     contracts: tuple[models.Contract, ...],
     schemas: dict[str, models.TableSchema],
     registry: models.PipelineRegistry,
@@ -152,7 +152,9 @@ def find_all_contract_drift(
         if not contract.governed:
             continue
         findings.extend(
-            find_contract_drift(contract, schemas[contract.table], writing_job(registry, contract.table))
+            find_contract_drift_in_table(
+                contract, schemas[contract.table], writing_job(registry, contract.table)
+            )
         )
 
     return tuple(findings)

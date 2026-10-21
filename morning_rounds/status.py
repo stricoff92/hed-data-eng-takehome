@@ -8,30 +8,34 @@ THE_RUN_LOG = "workspace/runs.jsonl"
 
 # A pipeline nobody can measure must not be reported as degraded, which would claim its data is
 # fine for now. A job we watched fail is measured, so broken outranks unmeasured.
-STATUS_PRECEDENCE = (models.Status.BROKEN, models.Status.UNMEASURED, models.Status.DEGRADED)
+STATUS_PRECEDENCE = (
+    models.PipelineStatus.BROKEN,
+    models.PipelineStatus.UNMEASURED,
+    models.PipelineStatus.DEGRADED,
+)
 
 # Which findings make a pipeline what. Kept in one table so the same fault always carries the same
 # weight, and so the choice is somewhere a reader can check it against the brief.
 STATUS_BY_FINDING_CODE = {
-    models.FindingCode.JOB_NOT_IN_GIT: models.Status.DEGRADED,
-    models.FindingCode.JOB_NOT_DEPLOYED: models.Status.BROKEN,
-    models.FindingCode.JOB_SETTINGS_DIFFER: models.Status.DEGRADED,
-    models.FindingCode.JOB_RUN_FAILED: models.Status.BROKEN,
-    models.FindingCode.JOB_DID_NOT_RUN: models.Status.BROKEN,
-    models.FindingCode.JOB_SUCCEEDS_ONLY_ON_RETRY: models.Status.DEGRADED,
-    models.FindingCode.TABLE_EVIDENCE_UNREADABLE: models.Status.UNMEASURED,
-    models.FindingCode.TABLE_WROTE_NOTHING: models.Status.BROKEN,
-    models.FindingCode.TABLE_OLDER_THAN_SLO: models.Status.BROKEN,
-    models.FindingCode.TABLE_NEVER_REFRESHED: models.Status.BROKEN,
-    models.FindingCode.SCHEMA_BREAKS_CONTRACT: models.Status.BROKEN,
-    models.FindingCode.SCHEMA_EXCEEDS_CONTRACT: models.Status.DEGRADED,
+    models.FindingCode.JOB_NOT_IN_GIT: models.PipelineStatus.DEGRADED,
+    models.FindingCode.JOB_NOT_DEPLOYED: models.PipelineStatus.BROKEN,
+    models.FindingCode.JOB_SETTINGS_DIFFER: models.PipelineStatus.DEGRADED,
+    models.FindingCode.JOB_RUN_FAILED: models.PipelineStatus.BROKEN,
+    models.FindingCode.JOB_DID_NOT_RUN: models.PipelineStatus.BROKEN,
+    models.FindingCode.JOB_SUCCEEDS_ONLY_ON_RETRY: models.PipelineStatus.DEGRADED,
+    models.FindingCode.TABLE_EVIDENCE_UNREADABLE: models.PipelineStatus.UNMEASURED,
+    models.FindingCode.TABLE_WROTE_NOTHING: models.PipelineStatus.BROKEN,
+    models.FindingCode.TABLE_OLDER_THAN_SLO: models.PipelineStatus.BROKEN,
+    models.FindingCode.TABLE_NEVER_REFRESHED: models.PipelineStatus.BROKEN,
+    models.FindingCode.SCHEMA_BREAKS_CONTRACT: models.PipelineStatus.BROKEN,
+    models.FindingCode.SCHEMA_EXCEEDS_CONTRACT: models.PipelineStatus.DEGRADED,
 }
 
 # One retry is weather. A second run that needed one is a pattern, and the pattern is the finding.
 RETRY_PATTERN_MINIMUM_RUNS = 2
 
 
-def implied_status(finding: models.Finding) -> models.Status:
+def implied_status(finding: models.Finding) -> models.PipelineStatus:
     status = STATUS_BY_FINDING_CODE.get(finding.code)
     if status is None:
         raise NotImplementedError(f"no status is defined for finding code: {finding.code}")
@@ -39,13 +43,13 @@ def implied_status(finding: models.Finding) -> models.Status:
     return status
 
 
-def status_of(findings: tuple[models.Finding, ...]) -> models.Status:
+def worst_status_among(findings: tuple[models.Finding, ...]) -> models.PipelineStatus:
     implied = {implied_status(finding) for finding in findings}
     for status in STATUS_PRECEDENCE:
         if status in implied:
             return status
 
-    return models.Status.HEALTHY
+    return models.PipelineStatus.HEALTHY
 
 
 def runs_of_job(runs: models.RunsLog, job: str) -> tuple[models.Run, ...]:
@@ -110,7 +114,7 @@ def retry_pattern_finding(
     captured: int,
 ) -> models.Finding:
     failed_attempts = tuple(
-        attempt for attempt in run.attempts if attempt.result_state is models.ResultState.FAILED
+        attempt for attempt in run.attempts if attempt.result_state is models.RunResultState.FAILED
     )
     evidence = [describe_attempt(run, attempt) for attempt in run.attempts]
     evidence.extend(
@@ -133,7 +137,7 @@ def retry_pattern_finding(
     )
 
 
-def find_job_findings(
+def find_run_log_findings(
     pipeline: models.Pipeline,
     runs: models.RunsLog,
     as_of: str,
@@ -142,19 +146,19 @@ def find_job_findings(
     if not captured:
         return (never_ran_finding(pipeline),)
 
-    newest = max(captured, key=lambda run: run.start_time)
+    newest = max(captured, key=lambda run: freshness.parse_timestamp(run.start_time))
     findings: list[models.Finding] = []
 
-    if newest.result_state is models.ResultState.FAILED:
+    if newest.result_state is models.RunResultState.FAILED:
         findings.append(failed_run_finding(pipeline, newest))
-    elif newest.result_state is not models.ResultState.SUCCESS:
+    elif newest.result_state is not models.RunResultState.SUCCESS:
         raise NotImplementedError(f"unhandled result state: {newest.result_state}")
 
     if freshness.age_in_hours(newest.start_time, as_of) > pipeline.freshness_slo_hours:
         findings.append(overdue_finding(pipeline, newest, as_of))
 
-    retried = tuple(run for run in captured if run.retries)
-    if newest.retries and len(retried) >= RETRY_PATTERN_MINIMUM_RUNS:
+    retried = tuple(run for run in captured if run.retries > 0)
+    if newest.retries > 0 and len(retried) >= RETRY_PATTERN_MINIMUM_RUNS:
         findings.append(retry_pattern_finding(pipeline, newest, retried, len(captured)))
 
     return tuple(findings)
@@ -164,17 +168,17 @@ def assess_pipeline(
     pipeline: models.Pipeline,
     runs: models.RunsLog,
     histories: dict[str, models.TableHistory],
-    inherited: tuple[models.Finding, ...],
+    inherited_findings: tuple[models.Finding, ...],
     as_of: str,
-) -> models.PipelineStatus:
-    findings = list(inherited)
-    findings.extend(find_job_findings(pipeline, runs, as_of))
+) -> models.AssessedPipeline:
+    findings = list(inherited_findings)
+    findings.extend(find_run_log_findings(pipeline, runs, as_of))
     for table in pipeline.writes:
         findings.extend(freshness.find_freshness(pipeline, histories[table], as_of))
 
-    return models.PipelineStatus(
+    return models.AssessedPipeline(
         pipeline=pipeline,
-        status=status_of(tuple(findings)),
+        status=worst_status_among(tuple(findings)),
         findings=tuple(findings),
     )
 
@@ -185,7 +189,7 @@ def assess(
     histories: dict[str, models.TableHistory],
     findings: tuple[models.Finding, ...],
     as_of: str,
-) -> tuple[models.PipelineStatus, ...]:
+) -> tuple[models.AssessedPipeline, ...]:
     return tuple(
         assess_pipeline(
             pipeline,

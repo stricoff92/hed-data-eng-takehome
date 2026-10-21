@@ -11,7 +11,7 @@ from typing import Any
 #
 # REPO models (source of truth: what should be deployed)
 
-class Tier(IntEnum):
+class PipelineTier(IntEnum):
     """How urgently a broken pipeline has to be answered, per platform-standards.md:27-33."""
 
     BUSINESS_FACING = 1
@@ -26,7 +26,7 @@ class Pipeline:
     cadence: str
     cadence_hours: float
     freshness_slo_hours: float
-    tier: Tier
+    tier: PipelineTier
     owner: str
     writes: tuple[str, ...]
     reads: tuple[str, ...]
@@ -52,7 +52,7 @@ class JobDefinition:
 #
 #
 @dataclass(frozen=True)
-class Column:
+class TableColumn:
     """A contract and a deployed schema describe a column the same way. That is what lets them
     be compared at all, so both are parsed into this."""
 
@@ -75,7 +75,7 @@ class Contract:
     owner: str
     contract_version: str
     source: str
-    columns: tuple[Column, ...]
+    columns: tuple[TableColumn, ...]
     writers: tuple[ContractWriter, ...]
 
 
@@ -163,12 +163,12 @@ class JobsSnapshot:
 
 #
 #
-class Trigger(StrEnum):
+class RunTrigger(StrEnum):
     PERIODIC = "PERIODIC"
     RETRY = "RETRY"
 
 
-class ResultState(StrEnum):
+class RunResultState(StrEnum):
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
 
@@ -179,10 +179,10 @@ class RunAttempt:
     job_name: str
     run_id: int
     attempt_number: int
-    trigger: Trigger
+    trigger: RunTrigger
     start_time: str
     end_time: str
-    result_state: ResultState
+    result_state: RunResultState
     state_message: str
 
 
@@ -200,7 +200,7 @@ class Run:
         return self.attempts[-1]
 
     @property
-    def result_state(self) -> ResultState:
+    def result_state(self) -> RunResultState:
         return self.latest_attempt.result_state
 
     @property
@@ -220,7 +220,7 @@ class RunsLog:
 
 #
 #
-class Operation(StrEnum):
+class TableOperation(StrEnum):
     WRITE = "WRITE"
     MERGE = "MERGE"
     OPTIMIZE = "OPTIMIZE"
@@ -232,7 +232,7 @@ class TableCommit:
     version: int
     timestamp: str
     user_name: str
-    operation: Operation
+    operation: TableOperation
     parameters: dict[str, str]
     job_id: int
     run_id: int
@@ -264,7 +264,7 @@ class TableSchema:
     status: CaptureStatus
     message: str | None
     captured_at: str | None
-    columns: tuple[Column, ...]
+    columns: tuple[TableColumn, ...]
 
 
 # REFERENCE models (neither repo nor workspace: what the platform has written down about itself)
@@ -320,21 +320,21 @@ class GaugeCatalog:
 
 # AGENT models (the overnight review, which the tool reconciles against the evidence)
 
-class ClaimEvidenceType(StrEnum):
+class AgentClaimEvidenceType(StrEnum):
     RUN = "run"
     RUNS = "runs"
 
 
 @dataclass(frozen=True)
-class ClaimEvidence:
-    type: ClaimEvidenceType
+class AgentClaimEvidence:
+    type: AgentClaimEvidenceType
     run_id: int | None
     job_id: int | None
     window: str | None
 
 
 @dataclass(frozen=True)
-class Claim:
+class AgentClaim:
     id: str
     pipeline: str
     assertion: str
@@ -342,7 +342,7 @@ class Claim:
     # the platform defines. It says "recovered" and "late", which are not statuses at all, and
     # reconciliation has to pass a verdict on the word it actually used.
     status: str
-    evidence: tuple[ClaimEvidence, ...]
+    evidence: tuple[AgentClaimEvidence, ...]
 
 
 @dataclass(frozen=True)
@@ -353,12 +353,12 @@ class AgentReview:
     scope: str
     summary: str
     source: str
-    claims: tuple[Claim, ...]
+    claims: tuple[AgentClaim, ...]
 
 
 # FINDINGS (what the rules produce)
 
-class Status(StrEnum):
+class PipelineStatus(StrEnum):
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     BROKEN = "broken"
@@ -385,6 +385,9 @@ class FindingCode(StrEnum):
 @dataclass(frozen=True)
 class Finding:
     code: FindingCode
+    # What the finding is about: a pipeline id, the job name of a pipeline, or a table. One naming
+    # a job or pipeline the registry declares is carried by that pipeline; anything else becomes a
+    # platform finding. `status.platform_findings` is where that split is made.
     subject: str
     what: str
     why: str
@@ -392,37 +395,37 @@ class Finding:
 
 
 @dataclass(frozen=True)
-class PipelineStatus:
+class AssessedPipeline:
     pipeline: Pipeline
-    status: Status
+    status: PipelineStatus
     findings: tuple[Finding, ...]
 
 
-class Verdict(StrEnum):
+class ClaimVerdict(StrEnum):
     VERIFIED = "verified"
     CONTRADICTED = "contradicted"
     UNVERIFIABLE = "unverifiable"
 
 
 @dataclass(frozen=True)
-class ClaimVerdict:
-    claim: Claim
-    verdict: Verdict
+class JudgedClaim:
+    claim: AgentClaim
+    verdict: ClaimVerdict
     why: str
     evidence: tuple[str, ...]
 
 
 @dataclass(frozen=True)
-class Rounds:
+class RoundsResult:
     """Everything one morning's rounds established, which is all the writers are allowed to know."""
 
     as_of: str
     manifest: Manifest
-    pipelines: tuple[PipelineStatus, ...]
+    pipelines: tuple[AssessedPipeline, ...]
     platform_findings: tuple[Finding, ...]
     histories: dict[str, TableHistory]
     review: AgentReview
-    verdicts: tuple[ClaimVerdict, ...]
+    verdicts: tuple[JudgedClaim, ...]
     unreviewed: tuple[str, ...]
     catalog: GaugeCatalog
     # Offending columns per governed table, so the telemetry can publish a count it measured

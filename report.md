@@ -64,7 +64,7 @@ run 882174 failed on 2 attempts, the last of them at 2026-10-20T09:35:13Z: [TABL
 
 - `workspace/runs.jsonl: run_id 882174 attempt 0, FAILED at 2026-10-20T09:32:08Z`
 - `workspace/runs.jsonl: run_id 882174 attempt 1, FAILED at 2026-10-20T09:35:13Z`
-- `workspace/runs.jsonl: run_id 882174, state_message [TABLE_OR_VIEW_NOT_FOUND] The table or view `hed_dataplatform.bronze.dataverse_projects` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42P01`
+- ``workspace/runs.jsonl: run_id 882174, state_message [TABLE_OR_VIEW_NOT_FOUND] The table or view `hed_dataplatform.bronze.dataverse_projects` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42P01``
 
 ### deltek_helix_daily_refresh — broken
 

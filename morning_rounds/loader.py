@@ -34,7 +34,7 @@ def parse_pipeline(entry: Any) -> models.Pipeline:
         cadence=entry["cadence"],
         cadence_hours=entry["cadence_hours"],
         freshness_slo_hours=entry["freshness_slo_hours"],
-        tier=models.Tier(entry["tier"]),
+        tier=models.PipelineTier(entry["tier"]),
         owner=entry["owner"],
         writes=tuple(entry["writes"]),
         reads=tuple(entry["reads"]),
@@ -72,8 +72,8 @@ def load_job_definitions(fixtures: Path) -> tuple[models.JobDefinition, ...]:
 CONTRACTS_RELATIVE_PATH = Path("repo") / "contracts"
 
 
-def parse_column(entry: Any) -> models.Column:
-    return models.Column(
+def parse_column(entry: Any) -> models.TableColumn:
+    return models.TableColumn(
         name=entry["name"],
         type=entry["type"],
         nullable=entry["nullable"],
@@ -217,10 +217,10 @@ def parse_run_attempt(entry: Any) -> models.RunAttempt:
         job_name=entry["job_name"],
         run_id=entry["run_id"],
         attempt_number=entry["attempt"],
-        trigger=models.Trigger(entry["trigger"]),
+        trigger=models.RunTrigger(entry["trigger"]),
         start_time=entry["start_time"],
         end_time=entry["end_time"],
-        result_state=models.ResultState(entry["result_state"]),
+        result_state=models.RunResultState(entry["result_state"]),
         state_message=entry["state_message"],
     )
 
@@ -259,7 +259,7 @@ def parse_table_commit(entry: Any) -> models.TableCommit:
         version=entry["version"],
         timestamp=entry["timestamp"],
         user_name=entry["userName"],
-        operation=models.Operation(entry["operation"]),
+        operation=models.TableOperation(entry["operation"]),
         parameters=entry["operationParameters"],
         # Delta reports the committing job and every metric as strings. Parsing them here is the
         # only reason a rule can compare a commit to a job id or a row count without casting.
@@ -295,7 +295,7 @@ def load_table_schema(fixtures: Path, manifest: models.Manifest, table: str) -> 
 
     if captured.status is models.CaptureStatus.ERROR:
         captured_at: str | None = None
-        columns: tuple[models.Column, ...] = ()
+        columns: tuple[models.TableColumn, ...] = ()
     elif captured.status is models.CaptureStatus.OK:
         document = read_json(fixtures / relative_path)
         captured_at = document["captured_at"]
@@ -376,21 +376,21 @@ def load_gauge_catalog(fixtures: Path) -> models.GaugeCatalog:
 AGENT_REVIEW_RELATIVE_PATH = Path("agent") / "morning-review-2026-10-20.json"
 
 
-def parse_claim_evidence(entry: Any) -> models.ClaimEvidence:
-    evidence_type = models.ClaimEvidenceType(entry["type"])
+def parse_claim_evidence(entry: Any) -> models.AgentClaimEvidence:
+    evidence_type = models.AgentClaimEvidenceType(entry["type"])
 
-    if evidence_type is models.ClaimEvidenceType.RUN:
-        return models.ClaimEvidence(type=evidence_type, run_id=entry["run_id"], job_id=None, window=None)
-    elif evidence_type is models.ClaimEvidenceType.RUNS:
-        return models.ClaimEvidence(
+    if evidence_type is models.AgentClaimEvidenceType.RUN:
+        return models.AgentClaimEvidence(type=evidence_type, run_id=entry["run_id"], job_id=None, window=None)
+    elif evidence_type is models.AgentClaimEvidenceType.RUNS:
+        return models.AgentClaimEvidence(
             type=evidence_type, run_id=None, job_id=entry["job_id"], window=entry["window"]
         )
     else:
         raise NotImplementedError(f"unhandled claim evidence type: {evidence_type}")
 
 
-def parse_claim(entry: Any) -> models.Claim:
-    return models.Claim(
+def parse_claim(entry: Any) -> models.AgentClaim:
+    return models.AgentClaim(
         id=entry["id"],
         pipeline=entry["pipeline"],
         assertion=entry["assertion"],

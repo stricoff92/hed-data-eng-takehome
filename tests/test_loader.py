@@ -68,7 +68,7 @@ class PipelineRegistryTest(unittest.TestCase):
         rapid = by_id["mm_rapid_pipeline_30min"]
         self.assertEqual(rapid.cadence_hours, 0.5)
         self.assertEqual(rapid.freshness_slo_hours, 2)
-        self.assertEqual(rapid.tier, models.Tier.BUSINESS_FACING)
+        self.assertEqual(rapid.tier, models.PipelineTier.BUSINESS_FACING)
 
         weekly = by_id["workday_project_transactions_weekly"]
         self.assertEqual(weekly.cadence_hours, 168)
@@ -280,7 +280,7 @@ class RunsLogTest(unittest.TestCase):
         retried = by_run_id[882210]
         self.assertEqual(retried.job_name, "mm_rapid_pipeline_30min")
         self.assertEqual(retried.retries, 2)
-        self.assertEqual(retried.result_state, models.ResultState.SUCCESS)
+        self.assertEqual(retried.result_state, models.RunResultState.SUCCESS)
         self.assertEqual(retried.latest_attempt.attempt_number, 2)
 
     def test_the_attempts_of_a_run_arrive_in_attempt_order_though_the_file_lists_them_newest_first(
@@ -293,11 +293,11 @@ class RunsLogTest(unittest.TestCase):
         self.assertEqual([attempt.attempt_number for attempt in retried.attempts], [0, 1, 2])
         self.assertEqual(
             [attempt.result_state for attempt in retried.attempts],
-            [models.ResultState.FAILED, models.ResultState.FAILED, models.ResultState.SUCCESS],
+            [models.RunResultState.FAILED, models.RunResultState.FAILED, models.RunResultState.SUCCESS],
         )
         self.assertEqual(
             [attempt.trigger for attempt in retried.attempts],
-            [models.Trigger.PERIODIC, models.Trigger.RETRY, models.Trigger.RETRY],
+            [models.RunTrigger.PERIODIC, models.RunTrigger.RETRY, models.RunTrigger.RETRY],
         )
 
     def test_a_run_is_timed_from_when_it_was_scheduled_rather_than_from_its_last_retry(self) -> None:
@@ -314,7 +314,7 @@ class RunsLogTest(unittest.TestCase):
 
         exhausted = by_run_id[882174]
         self.assertEqual(exhausted.job_name, "dim_projects_daily")
-        self.assertEqual(exhausted.result_state, models.ResultState.FAILED)
+        self.assertEqual(exhausted.result_state, models.RunResultState.FAILED)
         self.assertEqual(exhausted.retries, 1)
         for attempt in exhausted.attempts:
             self.assertIn("TABLE_OR_VIEW_NOT_FOUND", attempt.state_message)
@@ -327,7 +327,7 @@ class RunsLogTest(unittest.TestCase):
         clean = by_run_id[882213]
         self.assertEqual(clean.job_name, "use_case_tracking_scheduled")
         self.assertEqual(clean.retries, 0)
-        self.assertEqual(clean.result_state, models.ResultState.SUCCESS)
+        self.assertEqual(clean.result_state, models.RunResultState.SUCCESS)
         self.assertEqual(clean.latest_attempt.state_message, "")
 
     def test_the_runs_stay_newest_first_as_the_jobs_api_returned_them(self) -> None:
@@ -485,11 +485,11 @@ class TableHistoryTest(unittest.TestCase):
         )
 
         newest, previous = history.commits[0], history.commits[1]
-        self.assertEqual(newest.operation, models.Operation.OPTIMIZE)
+        self.assertEqual(newest.operation, models.TableOperation.OPTIMIZE)
         self.assertEqual(newest.job_id, 1099)
         self.assertEqual(newest.timestamp, "2026-10-19T03:07:00Z")
 
-        self.assertEqual(previous.operation, models.Operation.WRITE)
+        self.assertEqual(previous.operation, models.TableOperation.WRITE)
         self.assertEqual(previous.job_id, 1004)
         self.assertEqual(previous.timestamp, "2026-10-11T08:08:00Z")
 
@@ -508,7 +508,7 @@ class TableHistoryTest(unittest.TestCase):
         self.assertEqual(commit.job_id, 1001)
         self.assertEqual(commit.run_id, 882184)
         self.assertEqual(commit.metrics["numOutputRows"], 0)
-        self.assertEqual(commit.operation, models.Operation.WRITE)
+        self.assertEqual(commit.operation, models.TableOperation.WRITE)
         self.assertEqual(commit.parameters, {"mode": "Append"})
 
     def test_every_operation_the_platform_performs_on_a_table_is_recognised(self) -> None:
@@ -522,7 +522,7 @@ class TableHistoryTest(unittest.TestCase):
             for commit in loader.load_table_history(SUPPLIED_FIXTURES, manifest, table).commits
         }
 
-        self.assertEqual(seen, set(models.Operation))
+        self.assertEqual(seen, set(models.TableOperation))
 
     def test_a_commit_in_an_operation_the_pack_does_not_document_is_refused(self) -> None:
         vacuumed = {**A_BRONZE_WRITE_COMMIT, "operation": "VACUUM START"}
@@ -673,7 +673,7 @@ class AgentReviewTest(unittest.TestCase):
 
         single = by_id["C1"]
         self.assertEqual(single.pipeline, "workday_bronze_daily")
-        self.assertEqual(single.evidence[0].type, models.ClaimEvidenceType.RUN)
+        self.assertEqual(single.evidence[0].type, models.AgentClaimEvidenceType.RUN)
         self.assertEqual(single.evidence[0].run_id, 882184)
         self.assertIsNone(single.evidence[0].window)
 
@@ -682,7 +682,7 @@ class AgentReviewTest(unittest.TestCase):
         by_id = {claim.id: claim for claim in review.claims}
 
         aggregate = by_id["C6"].evidence[0]
-        self.assertEqual(aggregate.type, models.ClaimEvidenceType.RUNS)
+        self.assertEqual(aggregate.type, models.AgentClaimEvidenceType.RUNS)
         self.assertEqual(aggregate.job_id, 1007)
         self.assertEqual(aggregate.window, "last 25")
         self.assertIsNone(aggregate.run_id)

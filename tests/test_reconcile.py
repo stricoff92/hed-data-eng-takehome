@@ -24,7 +24,7 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
         drift_findings = drift.find_drift(
             loader.load_job_definitions(SUPPLIED_FIXTURES),
             loader.load_jobs_snapshot(SUPPLIED_FIXTURES),
-        ) + contracts.find_all_contract_drift(governed, schemas, self.registry)
+        ) + contracts.find_contract_drift(governed, schemas, self.registry)
         assessed = status.assess(
             self.registry, self.runs, histories, drift_findings, manifest.captured_at
         )
@@ -44,7 +44,7 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
     def test_a_claim_resting_on_a_run_that_does_not_exist_is_contradicted_on_that_alone(self) -> None:
         judged = self.verdicts["C3"]
 
-        self.assertEqual(judged.verdict, models.Verdict.CONTRADICTED)
+        self.assertEqual(judged.verdict, models.ClaimVerdict.CONTRADICTED)
         self.assertIn("882177", judged.why)
         self.assertIn("workspace/runs.jsonl: no run with run_id 882177", judged.evidence)
         # The failure it describes is real, and the reader has to be able to see that too.
@@ -53,7 +53,7 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
     def test_a_claim_whose_run_succeeded_is_still_contradicted_when_the_data_did_not_move(self) -> None:
         judged = self.verdicts["C1"]
 
-        self.assertEqual(judged.verdict, models.Verdict.CONTRADICTED)
+        self.assertEqual(judged.verdict, models.ClaimVerdict.CONTRADICTED)
         self.assertIn("the claim says healthy; the evidence says broken", judged.why)
         self.assertIn("what it got wrong is the conclusion, not the citation", judged.why)
         self.assertTrue(any("run_id 882184" in line and "SUCCESS" in line for line in judged.evidence))
@@ -61,26 +61,26 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
     def test_a_claim_about_a_table_nobody_can_read_is_unverifiable_and_not_contradicted(self) -> None:
         judged = self.verdicts["C8"]
 
-        self.assertEqual(judged.verdict, models.Verdict.UNVERIFIABLE)
+        self.assertEqual(judged.verdict, models.ClaimVerdict.UNVERIFIABLE)
         self.assertIn("was not captured", judged.why)
 
     def test_a_claim_counting_runs_is_answered_with_what_the_window_actually_holds(self) -> None:
         judged = self.verdicts["C6"]
 
-        self.assertEqual(judged.verdict, models.Verdict.CONTRADICTED)
+        self.assertEqual(judged.verdict, models.ClaimVerdict.CONTRADICTED)
         # The agent said 25 of 25 succeeded. They did — after 9 of them were retried.
         self.assertTrue(any("25 runs captured, 25 succeeded, 9 of them only after a retry" in line
                             for line in judged.evidence))
 
     def test_a_claim_the_evidence_agrees_with_is_verified(self) -> None:
-        self.assertEqual(self.verdicts["C2"].verdict, models.Verdict.VERIFIED)
+        self.assertEqual(self.verdicts["C2"].verdict, models.ClaimVerdict.VERIFIED)
 
     def test_a_claim_about_a_job_that_ran_fine_is_contradicted_by_what_it_wrote(self) -> None:
         # C7 calls deltek_helix_daily_refresh healthy. Its run did succeed, and the table it
         # wrote no longer carries the money column its contract promises.
         judged = self.verdicts["C7"]
 
-        self.assertEqual(judged.verdict, models.Verdict.CONTRADICTED)
+        self.assertEqual(judged.verdict, models.ClaimVerdict.CONTRADICTED)
         self.assertTrue(any("deployed_schema_breaks_its_contract" in line
                             for line in judged.evidence))
 
@@ -88,7 +88,7 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
         judged = self.verdicts["C5"]
 
         self.assertEqual(judged.claim.status, "late")
-        self.assertEqual(judged.verdict, models.Verdict.CONTRADICTED)
+        self.assertEqual(judged.verdict, models.ClaimVerdict.CONTRADICTED)
         self.assertIn("the claim says late; the evidence says healthy", judged.why)
 
     def test_the_pipeline_the_agent_never_mentioned_is_named(self) -> None:
@@ -98,7 +98,7 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
         )
 
     def test_a_claim_about_a_pipeline_the_registry_does_not_declare_cannot_be_judged(self) -> None:
-        invented = models.Claim(
+        invented = models.AgentClaim(
             id="C9",
             pipeline="a_pipeline_nobody_registered",
             assertion="Healthy.",
@@ -106,9 +106,9 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
             evidence=(),
         )
 
-        judged = reconcile.judge(invented, None, self.runs)
+        judged = reconcile.judge_claim(invented, None, self.runs)
 
-        self.assertEqual(judged.verdict, models.Verdict.UNVERIFIABLE)
+        self.assertEqual(judged.verdict, models.ClaimVerdict.UNVERIFIABLE)
         self.assertIn("not a pipeline the registry declares", judged.why)
 
 

@@ -15,7 +15,10 @@ It writes `report.json`, `report.md` and `telemetry.ndjson` into `--out` (defaul
 directory) and prints a summary to stdout. Diagnostics go to stderr; there is no log file. The
 run is refused if `--out` points inside the fixture pack, which is read-only.
 
-"Now" is `captured_at` from `workspace/manifest.json`. `--as-of TIMESTAMP` overrides it.
+"Now" is `captured_at` from `workspace/manifest.json`. `--as-of TIMESTAMP` overrides it, and has
+to carry a timezone and be no earlier than the snapshot: every age is measured against evidence
+the snapshot holds up to the instant it was captured, and this does not hide evidence to simulate
+an earlier morning.
 
 ## How it is put together
 

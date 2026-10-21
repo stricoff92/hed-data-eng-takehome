@@ -14,8 +14,9 @@ from pathlib import Path
 
 from morning_rounds import (
     constants,
-    contracts as contract_rule,
+    contracts,
     drift,
+    freshness,
     loader,
     models,
     reconcile,
@@ -104,6 +105,10 @@ def run_check(arguments: argparse.Namespace) -> int:
         )
         return EXIT_USAGE
 
+    if output_directory.exists() and not output_directory.is_dir():
+        write_error_line(f"--out {output_directory} is a file; it has to be a directory.")
+        return EXIT_USAGE
+
     # The panel diffs the pack against their original, so refuse to aim our own
     # output into it rather than trusting ourselves not to.
     if output_directory == fixtures or output_directory.is_relative_to(fixtures):
@@ -113,20 +118,22 @@ def run_check(arguments: argparse.Namespace) -> int:
         )
         return EXIT_USAGE
 
+    as_of_override: str | None = arguments.as_of
+
     try:
         manifest = loader.load_manifest(fixtures)
         registry = loader.load_pipeline_registry(fixtures)
         definitions = loader.load_job_definitions(fixtures)
         deployed = loader.load_jobs_snapshot(fixtures)
         runs = loader.load_runs_log(fixtures)
-        contracts = loader.load_contracts(fixtures)
+        governed_contracts = loader.load_contracts(fixtures)
         lineage = loader.load_lineage(fixtures)
         dictionary = loader.load_data_dictionary(fixtures)
         gauges = loader.load_gauge_catalog(fixtures)
         review = loader.load_agent_review(fixtures)
         written_tables = sorted(
             {table for pipeline in registry.pipelines for table in pipeline.writes}
-            | {contract.table for contract in contracts}
+            | {contract.table for contract in governed_contracts}
         )
         histories = {
             table: loader.load_table_history(fixtures, manifest, table) for table in written_tables
@@ -139,7 +146,24 @@ def run_check(arguments: argparse.Namespace) -> int:
         write_error_line("pass --fixtures DIR to point at the fixture pack.")
         return EXIT_ERROR
 
-    as_of: str = arguments.as_of or manifest.captured_at
+    as_of: str = as_of_override or manifest.captured_at
+    as_of_source = "--as-of" if as_of_override else manifest.source
+    try:
+        asked_for = freshness.parse_timestamp(as_of)
+    except ValueError as error:
+        write_error_line(f"{as_of_source}: {error}")
+        return EXIT_USAGE
+
+    # Every age is measured against the snapshot, and the snapshot holds runs and commits from up
+    # to the instant it was captured. Measuring from before that would date evidence to the future
+    # and report negative ages; hiding the evidence instead is a feature this does not have.
+    if asked_for < freshness.parse_timestamp(manifest.captured_at):
+        write_error_line(
+            f"--as-of {as_of} is before {manifest.source} was captured "
+            f"({manifest.captured_at}), and the snapshot cannot be un-seen."
+        )
+        return EXIT_USAGE
+
     unreadable = tuple(
         file for file in manifest.files if file.status is models.CaptureStatus.ERROR
     )
@@ -161,9 +185,9 @@ def run_check(arguments: argparse.Namespace) -> int:
         f"{sum(len(run.attempts) for run in runs.runs)} attempts"
     )
     findings = (drift.find_drift(definitions, deployed)
-                + contract_rule.find_all_contract_drift(contracts, schemas, registry))
+                + contracts.find_contract_drift(governed_contracts, schemas, registry))
     assessed = status.assess(registry, runs, histories, findings, as_of)
-    rounds = models.Rounds(
+    rounds_result = models.RoundsResult(
         as_of=as_of,
         manifest=manifest,
         pipelines=assessed,
@@ -173,26 +197,29 @@ def run_check(arguments: argparse.Namespace) -> int:
         verdicts=reconcile.reconcile(review, assessed, runs),
         unreviewed=reconcile.unreviewed_pipelines(review, registry),
         catalog=gauges,
-        contract_violations=contract_rule.count_violations(contracts, schemas),
+        contract_violations=contracts.count_violations(governed_contracts, schemas),
     )
 
     write_output_line(
-        f"{len(contracts)} governed tables, {len(lineage.consumers)} consumers, "
+        f"{len(governed_contracts)} governed tables, {len(lineage.consumers)} consumers, "
         f"{len(dictionary.entries)} documented fields, {len(schemas)} deployed schemas read"
     )
-    for pipeline_status in sorted(rounds.pipelines, key=lambda one: report.STATUS_ORDER.index(one.status)):
+    worst_first = sorted(
+        rounds_result.pipelines, key=lambda assessed: report.STATUS_ORDER.index(assessed.status)
+    )
+    for assessed in worst_first:
         write_output_line(
-            f"{pipeline_status.status}: {pipeline_status.pipeline.id} "
-            f"(tier {pipeline_status.pipeline.tier}, {len(pipeline_status.findings)} findings)"
+            f"{assessed.status}: {assessed.pipeline.id} "
+            f"(tier {assessed.pipeline.tier}, {len(assessed.findings)} findings)"
         )
-    for finding in rounds.platform_findings:
+    for finding in rounds_result.platform_findings:
         write_output_line(f"platform: {finding.subject}, {finding.code}")
-    for judged in rounds.verdicts:
+    for judged in rounds_result.verdicts:
         write_output_line(f"{judged.verdict}: {judged.claim.id} {judged.claim.pipeline}")
-    write_output_line(f"not reviewed by the agent: {', '.join(rounds.unreviewed)}")
+    write_output_line(f"not reviewed by the agent: {', '.join(rounds_result.unreviewed)}")
 
-    for written in report.write_reports(rounds, output_directory):
-        write_output_line(f"wrote {written}")
+    for written_path in report.write_reports(rounds_result, output_directory):
+        write_output_line(f"wrote {written_path}")
     return EXIT_OK
 
 

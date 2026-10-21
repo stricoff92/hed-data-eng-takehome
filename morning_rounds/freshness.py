@@ -18,19 +18,30 @@ SECONDS_PER_HOUR = 3600
 # handed: one handed rows has refreshed the table even when none of them needed changing, and one
 # handed none has not, whatever it then copied. OPTIMIZE is absent because it is maintenance.
 ROWS_ARRIVED_METRIC = {
-    models.Operation.MERGE: "numSourceRows",
-    models.Operation.WRITE: "numOutputRows",
-    models.Operation.CREATE_OR_REPLACE_TABLE_AS_SELECT: "numOutputRows",
+    models.TableOperation.MERGE: "numSourceRows",
+    models.TableOperation.WRITE: "numOutputRows",
+    models.TableOperation.CREATE_OR_REPLACE_TABLE_AS_SELECT: "numOutputRows",
 }
 
 
+def parse_timestamp(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value)
+    # Every timestamp in the pack carries a zone. One without a zone cannot be subtracted from one
+    # that has it, and guessing a zone would silently shift every age by hours.
+    if parsed.tzinfo is None:
+        raise ValueError(f"{value} has no timezone, so it cannot be compared to the snapshot: "
+                         f"write it like 2026-10-20T11:30:00Z")
+
+    return parsed
+
+
 def age_in_hours(timestamp: str, as_of: str) -> float:
-    elapsed = datetime.fromisoformat(as_of) - datetime.fromisoformat(timestamp)
+    elapsed = parse_timestamp(as_of) - parse_timestamp(timestamp)
     return elapsed.total_seconds() / SECONDS_PER_HOUR
 
 
 def is_maintenance(commit: models.TableCommit) -> bool:
-    return commit.operation is models.Operation.OPTIMIZE
+    return commit.operation is models.TableOperation.OPTIMIZE
 
 
 def rows_arrived(commit: models.TableCommit) -> tuple[str, int]:
@@ -158,8 +169,12 @@ def never_refreshed_finding(
     )
 
 
+def newest_first(history: models.TableHistory) -> tuple[models.TableCommit, ...]:
+    return tuple(sorted(history.commits, key=lambda commit: commit.version, reverse=True))
+
+
 def newest_refresh(history: models.TableHistory) -> models.TableCommit | None:
-    return next((commit for commit in history.commits if refreshed_data(commit)), None)
+    return next((commit for commit in newest_first(history) if refreshed_data(commit)), None)
 
 
 def find_freshness(
@@ -172,16 +187,17 @@ def find_freshness(
     elif history.status is not models.CaptureStatus.OK:
         raise NotImplementedError(f"unhandled capture status: {history.status}")
 
+    ordered = newest_first(history)
     refreshed = newest_refresh(history)
     if refreshed is None:
         return (never_refreshed_finding(pipeline, history),)
 
     findings: list[models.Finding] = []
-    newest_write = next((commit for commit in history.commits if not is_maintenance(commit)), None)
+    newest_write = next((commit for commit in ordered if not is_maintenance(commit)), None)
     if newest_write is not None and not refreshed_data(newest_write):
         findings.append(wrote_nothing_finding(pipeline, history, newest_write, refreshed))
 
     if age_in_hours(refreshed.timestamp, as_of) > pipeline.freshness_slo_hours:
-        findings.append(stale_finding(pipeline, history, refreshed, history.commits[0], as_of))
+        findings.append(stale_finding(pipeline, history, refreshed, ordered[0], as_of))
 
     return tuple(findings)

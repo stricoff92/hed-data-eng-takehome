@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from morning_rounds import freshness, models
@@ -44,10 +45,10 @@ SLO_BREACH_CODES = (
 
 # Worst first: this is read at 07:30 by somebody deciding what to touch.
 STATUS_ORDER = (
-    models.Status.BROKEN,
-    models.Status.UNMEASURED,
-    models.Status.DEGRADED,
-    models.Status.HEALTHY,
+    models.PipelineStatus.BROKEN,
+    models.PipelineStatus.UNMEASURED,
+    models.PipelineStatus.DEGRADED,
+    models.PipelineStatus.HEALTHY,
 )
 
 
@@ -60,7 +61,7 @@ def finding_as_json(finding: models.Finding) -> dict[str, object]:
     }
 
 
-def pipeline_as_json(assessed: models.PipelineStatus) -> dict[str, object]:
+def pipeline_as_json(assessed: models.AssessedPipeline) -> dict[str, object]:
     pipeline = assessed.pipeline
     return {
         "id": pipeline.id,
@@ -75,7 +76,7 @@ def pipeline_as_json(assessed: models.PipelineStatus) -> dict[str, object]:
     }
 
 
-def verdict_as_json(judged: models.ClaimVerdict) -> dict[str, object]:
+def verdict_as_json(judged: models.JudgedClaim) -> dict[str, object]:
     return {
         "id": judged.claim.id,
         "pipeline": judged.claim.pipeline,
@@ -87,21 +88,23 @@ def verdict_as_json(judged: models.ClaimVerdict) -> dict[str, object]:
     }
 
 
-def counted_by_status(rounds: models.Rounds) -> dict[str, int]:
+def counted_by_status(rounds: models.RoundsResult) -> dict[str, int]:
     return {
-        status.value: sum(1 for one in rounds.pipelines if one.status is status)
+        status.value: sum(
+            1 for assessed in rounds.pipelines if assessed.status is status
+        )
         for status in STATUS_ORDER
     }
 
 
-def counted_by_verdict(rounds: models.Rounds) -> dict[str, int]:
+def counted_by_verdict(rounds: models.RoundsResult) -> dict[str, int]:
     return {
         verdict.value: sum(1 for judged in rounds.verdicts if judged.verdict is verdict)
-        for verdict in models.Verdict
+        for verdict in models.ClaimVerdict
     }
 
 
-def build_json_report(rounds: models.Rounds) -> dict[str, object]:
+def build_json_report(rounds: models.RoundsResult) -> dict[str, object]:
     return {
         "as_of": rounds.as_of,
         "snapshot": {
@@ -115,7 +118,7 @@ def build_json_report(rounds: models.Rounds) -> dict[str, object]:
                 if file.status is models.CaptureStatus.ERROR
             ],
         },
-        "pipelines": [pipeline_as_json(one) for one in rounds.pipelines],
+        "pipelines": [pipeline_as_json(assessed) for assessed in rounds.pipelines],
         "platform_findings": [finding_as_json(finding) for finding in rounds.platform_findings],
         "agent_reconciliation": {
             "agent": rounds.review.agent,
@@ -133,14 +136,26 @@ def build_json_report(rounds: models.Rounds) -> dict[str, object]:
     }
 
 
+BACKTICK_RUN = re.compile(r"`+")
+
+
+def as_inline_code(text: str) -> str:
+    # Evidence is quoted verbatim, and a Delta error message can itself contain backticks. A code
+    # span has to be fenced by a longer run of them than anything inside it.
+    longest = max((len(run.group()) for run in BACKTICK_RUN.finditer(text)), default=0)
+    fence = "`" * (longest + 1)
+    padding = " " if text.startswith("`") or text.endswith("`") else ""
+    return f"{fence}{padding}{text}{padding}{fence}"
+
+
 def markdown_finding(finding: models.Finding) -> list[str]:
-    lines = [f"**{finding.what}** (`{finding.code}`)", "", finding.why, ""]
-    lines.extend(f"- `{line}`" for line in finding.evidence)
+    lines = [f"**{finding.what}** ({as_inline_code(finding.code)})", "", finding.why, ""]
+    lines.extend(f"- {as_inline_code(line)}" for line in finding.evidence)
     lines.append("")
     return lines
 
 
-def markdown_pipeline(assessed: models.PipelineStatus) -> list[str]:
+def markdown_pipeline(assessed: models.AssessedPipeline) -> list[str]:
     pipeline = assessed.pipeline
     lines = [
         f"### {pipeline.id} — {assessed.status}",
@@ -155,7 +170,7 @@ def markdown_pipeline(assessed: models.PipelineStatus) -> list[str]:
     return lines
 
 
-def build_markdown_report(rounds: models.Rounds) -> str:
+def build_markdown_report(rounds: models.RoundsResult) -> str:
     not_captured = [
         file for file in rounds.manifest.files if file.status is models.CaptureStatus.ERROR
     ]
@@ -167,10 +182,10 @@ def build_markdown_report(rounds: models.Rounds) -> str:
         f"by `{rounds.manifest.captured_by}` at {rounds.manifest.captured_at}. "
         f"{len(not_captured)} of {len(rounds.manifest.files)} files could not be read.",
         "",
-        f"{counts[models.Status.BROKEN.value]} broken, "
-        f"{counts[models.Status.DEGRADED.value]} degraded, "
-        f"{counts[models.Status.UNMEASURED.value]} unmeasured, "
-        f"{counts[models.Status.HEALTHY.value]} healthy.",
+        f"{counts[models.PipelineStatus.BROKEN.value]} broken, "
+        f"{counts[models.PipelineStatus.DEGRADED.value]} degraded, "
+        f"{counts[models.PipelineStatus.UNMEASURED.value]} unmeasured, "
+        f"{counts[models.PipelineStatus.HEALTHY.value]} healthy.",
         "",
         "## Pipelines",
         "",
@@ -178,7 +193,8 @@ def build_markdown_report(rounds: models.Rounds) -> str:
         "|---|---|---|---|",
     ]
     ordered = sorted(
-        rounds.pipelines, key=lambda one: (STATUS_ORDER.index(one.status), int(one.pipeline.tier))
+        rounds.pipelines,
+        key=lambda assessed: (STATUS_ORDER.index(assessed.status), int(assessed.pipeline.tier)),
     )
     for assessed in ordered:
         lines.append(
@@ -191,7 +207,10 @@ def build_markdown_report(rounds: models.Rounds) -> str:
         if assessed.findings:
             lines.extend(markdown_pipeline(assessed))
 
-    healthy = [one.pipeline.id for one in ordered if one.status is models.Status.HEALTHY]
+    healthy = [
+        assessed.pipeline.id for assessed in ordered
+        if assessed.status is models.PipelineStatus.HEALTHY
+    ]
     if healthy:
         lines.extend([
             "### Healthy",
@@ -235,7 +254,7 @@ def build_markdown_report(rounds: models.Rounds) -> str:
             judged.why,
             "",
         ])
-        lines.extend(f"- `{line}`" for line in judged.evidence)
+        lines.extend(f"- {as_inline_code(line)}" for line in judged.evidence)
         lines.append("")
 
     unreviewed = ", ".join(rounds.unreviewed) if rounds.unreviewed else "none"
@@ -243,7 +262,7 @@ def build_markdown_report(rounds: models.Rounds) -> str:
     return "\n".join(lines)
 
 
-def gauge_line(rounds: models.Rounds, name: str, value: float, labels: dict[str, str]) -> str:
+def gauge_line(rounds: models.RoundsResult, name: str, value: float, labels: dict[str, str]) -> str:
     declared = next((gauge for gauge in rounds.catalog.gauges if gauge.name == name), None)
     if declared is None:
         raise ValueError(f"{name} is not in {rounds.catalog.source}")
@@ -261,7 +280,7 @@ def log_line(name: str, fields: dict[str, object], as_of: str) -> str:
     return json.dumps({"kind": KIND_LOG, "name": name, "fields": fields, "ts": as_of})
 
 
-def pipeline_gauges(rounds: models.Rounds, assessed: models.PipelineStatus) -> list[str]:
+def pipeline_gauges(rounds: models.RoundsResult, assessed: models.AssessedPipeline) -> list[str]:
     pipeline = assessed.pipeline
     tier = str(int(pipeline.tier))
     lines = [gauge_line(rounds, GAUGE_PIPELINE_STATUS, PRESENT,
@@ -269,7 +288,7 @@ def pipeline_gauges(rounds: models.Rounds, assessed: models.PipelineStatus) -> l
 
     # An unmeasured pipeline gets no age and no breach sample at all. A zero here would read as
     # "measured, and fine", which is the one thing the evidence does not say.
-    if assessed.status is models.Status.UNMEASURED:
+    if assessed.status is models.PipelineStatus.UNMEASURED:
         return lines
 
     for table in pipeline.writes:
@@ -286,7 +305,7 @@ def pipeline_gauges(rounds: models.Rounds, assessed: models.PipelineStatus) -> l
     return lines
 
 
-def drift_gauges(rounds: models.Rounds) -> list[str]:
+def drift_gauges(rounds: models.RoundsResult) -> list[str]:
     drifted_jobs = {
         finding.subject for finding in rounds.platform_findings if finding.code in DRIFT_CODES
     }
@@ -300,7 +319,7 @@ def drift_gauges(rounds: models.Rounds) -> list[str]:
     return lines
 
 
-def contract_gauges(rounds: models.Rounds) -> list[str]:
+def contract_gauges(rounds: models.RoundsResult) -> list[str]:
     # A governed table whose schema could not be read is absent from the counts, and so gets no
     # sample: a zero would claim its contract was checked and kept.
     return [
@@ -309,7 +328,7 @@ def contract_gauges(rounds: models.Rounds) -> list[str]:
     ]
 
 
-def build_telemetry(rounds: models.Rounds) -> str:
+def build_telemetry(rounds: models.RoundsResult) -> str:
     lines: list[str] = []
     for assessed in rounds.pipelines:
         lines.extend(pipeline_gauges(rounds, assessed))
@@ -317,7 +336,7 @@ def build_telemetry(rounds: models.Rounds) -> str:
     lines.extend(contract_gauges(rounds))
 
     contradicted = sum(
-        1 for judged in rounds.verdicts if judged.verdict is models.Verdict.CONTRADICTED
+        1 for judged in rounds.verdicts if judged.verdict is models.ClaimVerdict.CONTRADICTED
     )
     lines.append(gauge_line(rounds, GAUGE_CLAIMS_CONTRADICTED, contradicted,
                             {"agent": rounds.review.agent}))
@@ -335,10 +354,10 @@ def build_telemetry(rounds: models.Rounds) -> str:
     counts = counted_by_status(rounds)
     lines.append(log_line(LOG_ROUNDS_COMPLETED, {
         "pipelines": len(rounds.pipelines),
-        "broken": counts[models.Status.BROKEN.value],
-        "degraded": counts[models.Status.DEGRADED.value],
-        "unmeasured": counts[models.Status.UNMEASURED.value],
-        "healthy": counts[models.Status.HEALTHY.value],
+        "broken": counts[models.PipelineStatus.BROKEN.value],
+        "degraded": counts[models.PipelineStatus.DEGRADED.value],
+        "unmeasured": counts[models.PipelineStatus.UNMEASURED.value],
+        "healthy": counts[models.PipelineStatus.HEALTHY.value],
         "platform_findings": len(rounds.platform_findings),
         "claims_contradicted": contradicted,
     }, rounds.as_of))
@@ -346,7 +365,7 @@ def build_telemetry(rounds: models.Rounds) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_reports(rounds: models.Rounds, output_directory: Path) -> tuple[Path, ...]:
+def write_reports(rounds: models.RoundsResult, output_directory: Path) -> tuple[Path, ...]:
     output_directory.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     for file_name, body in (

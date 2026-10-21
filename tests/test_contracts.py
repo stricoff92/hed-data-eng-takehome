@@ -11,11 +11,11 @@ A_SUBJECT = "a_job"
 
 
 def a_column(name: str, type_: str = "STRING", nullable: bool = True,
-             note: str | None = None) -> models.Column:
-    return models.Column(name=name, type=type_, nullable=nullable, note=note)
+             note: str | None = None) -> models.TableColumn:
+    return models.TableColumn(name=name, type=type_, nullable=nullable, note=note)
 
 
-def a_contract(columns: tuple[models.Column, ...], governed: bool = True) -> models.Contract:
+def a_contract(columns: tuple[models.TableColumn, ...], governed: bool = True) -> models.Contract:
     return models.Contract(
         table=A_TABLE,
         governed=governed,
@@ -28,7 +28,7 @@ def a_contract(columns: tuple[models.Column, ...], governed: bool = True) -> mod
 
 
 def a_deployed_schema(
-    columns: tuple[models.Column, ...],
+    columns: tuple[models.TableColumn, ...],
     capture_status: models.CaptureStatus = models.CaptureStatus.OK,
     message: str | None = None,
 ) -> models.TableSchema:
@@ -46,7 +46,7 @@ class ContractComparisonTest(unittest.TestCase):
     def test_a_table_deployed_exactly_as_its_contract_promises_is_not_a_finding(self) -> None:
         columns = (a_column("project_id", nullable=False), a_column("gross_fee", "DECIMAL(18,2)"))
 
-        findings = contracts.find_contract_drift(
+        findings = contracts.find_contract_drift_in_table(
             a_contract(columns), a_deployed_schema(columns), A_SUBJECT
         )
 
@@ -57,13 +57,13 @@ class ContractComparisonTest(unittest.TestCase):
         promised = (a_column("period", nullable=False, note="YYYY-MM"),)
         deployed = (a_column("period", nullable=False),)
 
-        self.assertEqual(contracts.find_contract_drift(
+        self.assertEqual(contracts.find_contract_drift_in_table(
             a_contract(promised), a_deployed_schema(deployed), A_SUBJECT), ())
 
     def test_a_promised_column_that_is_not_deployed_breaks_the_contract(self) -> None:
         promised = (a_column("net_fee", "DECIMAL(18,2)"),)
 
-        findings = contracts.find_contract_drift(
+        findings = contracts.find_contract_drift_in_table(
             a_contract(promised), a_deployed_schema(()), A_SUBJECT
         )
 
@@ -78,7 +78,7 @@ class ContractComparisonTest(unittest.TestCase):
         promised = (a_column("net_fee", "DECIMAL(18,2)"),)
         deployed = (a_column("net_fee", "DOUBLE"),)
 
-        findings = contracts.find_contract_drift(
+        findings = contracts.find_contract_drift_in_table(
             a_contract(promised), a_deployed_schema(deployed), A_SUBJECT
         )
 
@@ -91,7 +91,7 @@ class ContractComparisonTest(unittest.TestCase):
         promised = (a_column("project_id", nullable=False),)
         deployed = (a_column("project_id", nullable=True),)
 
-        findings = contracts.find_contract_drift(
+        findings = contracts.find_contract_drift_in_table(
             a_contract(promised), a_deployed_schema(deployed), A_SUBJECT
         )
 
@@ -103,7 +103,7 @@ class ContractComparisonTest(unittest.TestCase):
         promised = (a_column("project_id", nullable=False),)
         deployed = (a_column("project_id", nullable=False), a_column("net_fee_usd", "DOUBLE"))
 
-        findings = contracts.find_contract_drift(
+        findings = contracts.find_contract_drift_in_table(
             a_contract(promised), a_deployed_schema(deployed), A_SUBJECT
         )
 
@@ -115,7 +115,7 @@ class ContractComparisonTest(unittest.TestCase):
         promised = (a_column("net_fee", "DECIMAL(18,2)"),)
         deployed = (a_column("net_fee_usd", "DOUBLE"),)
 
-        findings = contracts.find_contract_drift(
+        findings = contracts.find_contract_drift_in_table(
             a_contract(promised), a_deployed_schema(deployed), A_SUBJECT
         )
 
@@ -127,7 +127,7 @@ class ContractComparisonTest(unittest.TestCase):
         denied = "PERMISSION_DENIED: User does not have SELECT on Table 'a_table'."
         unreadable = a_deployed_schema((), models.CaptureStatus.ERROR, denied)
 
-        findings = contracts.find_contract_drift(
+        findings = contracts.find_contract_drift_in_table(
             a_contract((a_column("project_id"),)), unreadable, A_SUBJECT
         )
 
@@ -139,7 +139,7 @@ class ContractComparisonTest(unittest.TestCase):
         promised = a_contract((a_column("net_fee", "DECIMAL(18,2)"),), governed=False)
         registry = models.PipelineRegistry(version=3, pipelines=())
 
-        findings = contracts.find_all_contract_drift(
+        findings = contracts.find_contract_drift(
             (promised,), {A_TABLE: a_deployed_schema(())}, registry
         )
 
@@ -155,7 +155,7 @@ class SuppliedSnapshotContractTest(unittest.TestCase):
             contract.table: loader.load_table_schema(SUPPLIED_FIXTURES, manifest, contract.table)
             for contract in self.contracts
         }
-        self.findings = contracts.find_all_contract_drift(
+        self.findings = contracts.find_contract_drift(
             self.contracts, self.schemas, self.registry
         )
 

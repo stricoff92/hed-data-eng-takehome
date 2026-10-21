@@ -9,7 +9,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 SUPPLIED_FIXTURES = REPOSITORY_ROOT / "takehome-packet" / "fixtures"
 
 
-def rounds_for_the_supplied_snapshot() -> models.Rounds:
+def rounds_for_the_supplied_snapshot() -> models.RoundsResult:
     manifest = loader.load_manifest(SUPPLIED_FIXTURES)
     registry = loader.load_pipeline_registry(SUPPLIED_FIXTURES)
     runs = loader.load_runs_log(SUPPLIED_FIXTURES)
@@ -25,10 +25,10 @@ def rounds_for_the_supplied_snapshot() -> models.Rounds:
     findings = drift.find_drift(
         loader.load_job_definitions(SUPPLIED_FIXTURES),
         loader.load_jobs_snapshot(SUPPLIED_FIXTURES),
-    ) + contracts.find_all_contract_drift(governed, schemas, registry)
+    ) + contracts.find_contract_drift(governed, schemas, registry)
     assessed = status.assess(registry, runs, histories, findings, manifest.captured_at)
     review = loader.load_agent_review(SUPPLIED_FIXTURES)
-    return models.Rounds(
+    return models.RoundsResult(
         as_of=manifest.captured_at,
         manifest=manifest,
         pipelines=assessed,
