@@ -1,19 +1,25 @@
 
 # DECISIONS
 
-```
-Short — a page, maybe two. We are reading for judgement, not volume:
-
-The decisions you made and what you traded away for them.
-Triage order: it is 07:30. What do you fix first, second, third — and why in that order?
-Buy vs build: what you would not have written yourself on a real platform — Databricks-nativae options, third-party data-observability tools — and what each would cost you. Include a sunset trigger: the observation that would tell you this tool has outlived its design.
-The thing you are least sure about. One honest paragraph on where your judgement could be wrong, and what evidence would settle it. This section carries real weight with us.
-What you would do with another day, in priority order.
-```
 
 
 ## Least Sure
- - How to manage time
+ - How to manage time. Without AI I have no choice but to fully digest concepts before I can implement and move on. with AI it's possible to build without fully digesting. with a 4 hour time limit and a bunch of unfamiliar data structures and terms: tough choices need to be made.
+
+## Triage order
+
+tier first, then whether consumers are reading wrong data right now:
+
+  1. workday_bronze_daily (t1) — succeeding while writing zero rows for 3 days. Start first because the fix is a credential rotation through the HRIS queue, so it blocks on other
+     people.
+  2. deltek_helix_daily_refresh (t1) — the financials table dropped net_fee/fee_currency; Finance's report reads both by name.
+  3. dim_projects_daily (t1) — hard failure, 0.1h inside its SLO, about to breach. Fast and self-contained.
+  4. mm_rapid_pipeline_30min (t1) — stop job 1188; one action closes the retry storm and the undeclared-job finding.
+  5. use_case_tracking_scheduled (t2) — a permission grant, not an engineering fix. Blind until it lands.
+  6. dashboard_parity_daily (t3) — worst staleness in the pack (8.4× SLO) but tier 3 is next-working-day.
+
+
+
 
 ## What kind of static type checking should I use for python?
 - A python package like `mypy` or an IDE extension.
