@@ -23,6 +23,8 @@ STATUS_BY_FINDING_CODE = {
     models.FindingCode.TABLE_WROTE_NOTHING: models.Status.BROKEN,
     models.FindingCode.TABLE_OLDER_THAN_SLO: models.Status.BROKEN,
     models.FindingCode.TABLE_NEVER_REFRESHED: models.Status.BROKEN,
+    models.FindingCode.SCHEMA_BREAKS_CONTRACT: models.Status.BROKEN,
+    models.FindingCode.SCHEMA_EXCEEDS_CONTRACT: models.Status.DEGRADED,
 }
 
 # One retry is weather. A second run that needed one is a pattern, and the pattern is the finding.
@@ -189,9 +191,10 @@ def assess(
             pipeline,
             runs,
             histories,
-            # A drift finding names a job. The pipeline that job runs owns it; anything naming a
-            # job no pipeline is registered against belongs to the platform instead.
-            tuple(finding for finding in findings if finding.subject == pipeline.job),
+            # An inherited finding names either the job or the pipeline, depending on which the
+            # rule that raised it was looking at. Anything naming neither belongs to the platform.
+            tuple(finding for finding in findings
+                  if finding.subject in (pipeline.job, pipeline.id)),
             as_of,
         )
         for pipeline in registry.pipelines
@@ -203,4 +206,5 @@ def platform_findings(
     findings: tuple[models.Finding, ...],
 ) -> tuple[models.Finding, ...]:
     registered = {pipeline.job for pipeline in registry.pipelines}
+    registered |= {pipeline.id for pipeline in registry.pipelines}
     return tuple(finding for finding in findings if finding.subject not in registered)

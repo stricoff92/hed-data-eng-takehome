@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from morning_rounds import drift, loader, models, reconcile, status
+from morning_rounds import contracts, drift, loader, models, reconcile, status
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 SUPPLIED_FIXTURES = REPOSITORY_ROOT / "takehome-packet" / "fixtures"
@@ -16,10 +16,15 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
             table: loader.load_table_history(SUPPLIED_FIXTURES, manifest, table)
             for pipeline in self.registry.pipelines for table in pipeline.writes
         }
+        governed = loader.load_contracts(SUPPLIED_FIXTURES)
+        schemas = {
+            contract.table: loader.load_table_schema(SUPPLIED_FIXTURES, manifest, contract.table)
+            for contract in governed
+        }
         drift_findings = drift.find_drift(
             loader.load_job_definitions(SUPPLIED_FIXTURES),
             loader.load_jobs_snapshot(SUPPLIED_FIXTURES),
-        )
+        ) + contracts.find_all_contract_drift(governed, schemas, self.registry)
         assessed = status.assess(
             self.registry, self.runs, histories, drift_findings, manifest.captured_at
         )
@@ -33,7 +38,7 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
         self.assertEqual(len(self.verdicts), len(self.review.claims))
         self.assertEqual(
             sorted(judged.verdict.value for judged in self.verdicts.values()),
-            ["contradicted"] * 5 + ["unverifiable"] + ["verified"] * 2,
+            ["contradicted"] * 6 + ["unverifiable", "verified"],
         )
 
     def test_a_claim_resting_on_a_run_that_does_not_exist_is_contradicted_on_that_alone(self) -> None:
@@ -68,8 +73,16 @@ class SuppliedReviewReconciliationTest(unittest.TestCase):
                             for line in judged.evidence))
 
     def test_a_claim_the_evidence_agrees_with_is_verified(self) -> None:
-        for claim_id in ("C2", "C7"):
-            self.assertEqual(self.verdicts[claim_id].verdict, models.Verdict.VERIFIED)
+        self.assertEqual(self.verdicts["C2"].verdict, models.Verdict.VERIFIED)
+
+    def test_a_claim_about_a_job_that_ran_fine_is_contradicted_by_what_it_wrote(self) -> None:
+        # C7 calls deltek_helix_daily_refresh healthy. Its run did succeed, and the table it
+        # wrote no longer carries the money column its contract promises.
+        judged = self.verdicts["C7"]
+
+        self.assertEqual(judged.verdict, models.Verdict.CONTRADICTED)
+        self.assertTrue(any("deployed_schema_breaks_its_contract" in line
+                            for line in judged.evidence))
 
     def test_the_agents_own_vocabulary_is_judged_rather_than_translated(self) -> None:
         judged = self.verdicts["C5"]

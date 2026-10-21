@@ -378,6 +378,8 @@ class FindingCode(StrEnum):
     TABLE_WROTE_NOTHING = "table_write_changed_no_data"
     TABLE_OLDER_THAN_SLO = "table_older_than_its_freshness_slo"
     TABLE_NEVER_REFRESHED = "table_has_no_write_that_changed_data"
+    SCHEMA_BREAKS_CONTRACT = "deployed_schema_breaks_its_contract"
+    SCHEMA_EXCEEDS_CONTRACT = "deployed_schema_has_columns_its_contract_does_not_declare"
 
 
 @dataclass(frozen=True)
@@ -423,3 +425,6 @@ class Rounds:
     verdicts: tuple[ClaimVerdict, ...]
     unreviewed: tuple[str, ...]
     catalog: GaugeCatalog
+    # Offending columns per governed table, so the telemetry can publish a count it measured
+    # rather than one it inferred from prose.
+    contract_violations: dict[str, int]

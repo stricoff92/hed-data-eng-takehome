@@ -15,6 +15,7 @@ GAUGE_PIPELINE_STATUS = "pipeline_status"
 GAUGE_PIPELINE_DATA_AGE = "pipeline_data_age_seconds"
 GAUGE_PIPELINE_SLO_BREACH = "pipeline_slo_breach"
 GAUGE_JOB_DRIFT = "job_definition_drift"
+GAUGE_SCHEMA_CONTRACT_VIOLATIONS = "schema_contract_violations"
 GAUGE_CLAIMS_CONTRADICTED = "agent_claims_contradicted"
 
 LOG_PIPELINE_FINDING = "pipeline_finding"
@@ -299,11 +300,21 @@ def drift_gauges(rounds: models.Rounds) -> list[str]:
     return lines
 
 
+def contract_gauges(rounds: models.Rounds) -> list[str]:
+    # A governed table whose schema could not be read is absent from the counts, and so gets no
+    # sample: a zero would claim its contract was checked and kept.
+    return [
+        gauge_line(rounds, GAUGE_SCHEMA_CONTRACT_VIOLATIONS, offending, {"table": table})
+        for table, offending in sorted(rounds.contract_violations.items())
+    ]
+
+
 def build_telemetry(rounds: models.Rounds) -> str:
     lines: list[str] = []
     for assessed in rounds.pipelines:
         lines.extend(pipeline_gauges(rounds, assessed))
     lines.extend(drift_gauges(rounds))
+    lines.extend(contract_gauges(rounds))
 
     contradicted = sum(
         1 for judged in rounds.verdicts if judged.verdict is models.Verdict.CONTRADICTED

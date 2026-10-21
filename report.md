@@ -2,7 +2,7 @@
 
 Snapshot `platform-snapshot` of workspace `adb-0000000000000000 (synthetic)`, captured by `svc-platform-snapshot@hed.example` at 2026-10-20T11:30:00Z. 2 of 22 files could not be read.
 
-3 broken, 2 degraded, 1 unmeasured, 3 healthy.
+4 broken, 2 degraded, 1 unmeasured, 2 healthy.
 
 ## Pipelines
 
@@ -10,12 +10,12 @@ Snapshot `platform-snapshot` of workspace `adb-0000000000000000 (synthetic)`, ca
 |---|---|---|---|
 | workday_bronze_daily | 1 | **broken** | 4 |
 | dim_projects_daily | 1 | **broken** | 1 |
+| deltek_helix_daily_refresh | 1 | **broken** | 2 |
 | dashboard_parity_daily | 3 | **broken** | 3 |
 | use_case_tracking_scheduled | 2 | **unmeasured** | 1 |
 | mm_rapid_pipeline_30min | 1 | **degraded** | 1 |
 | graph_pipeline_daily | 2 | **degraded** | 1 |
 | gold_dim_employees_daily | 1 | **healthy** | 0 |
-| deltek_helix_daily_refresh | 1 | **healthy** | 0 |
 | workday_project_transactions_weekly | 2 | **healthy** | 0 |
 
 ### workday_bronze_daily — broken
@@ -65,6 +65,29 @@ run 882174 failed on 2 attempts, the last of them at 2026-10-20T09:35:13Z: [TABL
 - `workspace/runs.jsonl: run_id 882174 attempt 0, FAILED at 2026-10-20T09:32:08Z`
 - `workspace/runs.jsonl: run_id 882174 attempt 1, FAILED at 2026-10-20T09:35:13Z`
 - `workspace/runs.jsonl: run_id 882174, state_message [TABLE_OR_VIEW_NOT_FOUND] The table or view `hed_dataplatform.bronze.dataverse_projects` cannot be found. Verify the spelling and correctness of the schema and catalog. SQLSTATE: 42P01`
+
+### deltek_helix_daily_refresh — broken
+
+Tier 1, owned by data-platform, runs daily 04:30 America/New_York, freshness SLO 26h, writes hed_dataplatform.gold.fact_project_financials.
+
+**the deployed schema of hed_dataplatform.gold.fact_project_financials breaks contract v1.2.0: net_fee, fee_currency** (`deployed_schema_breaks_its_contract`)
+
+the contract is the promise this table makes to its consumers, and net_fee, fee_currency are not deployed as it says. Anything reading those columns by name is reading something the contract does not describe
+
+- `repo/contracts/gold.fact_project_financials.json: net_fee = DECIMAL(18,2) nullable`
+- `workspace/tables/hed_dataplatform.gold.fact_project_financials/schema.json: net_fee = absent`
+- `repo/contracts/gold.fact_project_financials.json: fee_currency = STRING nullable`
+- `workspace/tables/hed_dataplatform.gold.fact_project_financials/schema.json: fee_currency = absent`
+- `repo/contracts/gold.fact_project_financials.json: contract_version 1.2.0, owner data-platform`
+- `repo/docs/platform-standards.md:35-39`
+
+**the deployed schema of hed_dataplatform.gold.fact_project_financials has columns contract v1.2.0 does not declare: net_fee_usd** (`deployed_schema_has_columns_its_contract_does_not_declare`)
+
+the data in them is not wrong, but the contract no longer describes the table, so a consumer cannot tell from it what net_fee_usd holds. The standard requires a change to a governed table to ship with an updated contract
+
+- `workspace/tables/hed_dataplatform.gold.fact_project_financials/schema.json: net_fee_usd = DOUBLE nullable, not in the contract`
+- `repo/contracts/gold.fact_project_financials.json: contract_version 1.2.0, owner data-platform`
+- `repo/docs/platform-standards.md:35-39`
 
 ### dashboard_parity_daily — broken
 
@@ -139,7 +162,7 @@ the workspace is a deployment target, not an editing surface. j.okafor@hed.examp
 
 ### Healthy
 
-Nothing to report against gold_dim_employees_daily, deltek_helix_daily_refresh, workday_project_transactions_weekly.
+Nothing to report against gold_dim_employees_daily, workday_project_transactions_weekly.
 
 ## Platform findings
 
@@ -166,7 +189,7 @@ it was last changed by r.chen@hed.example at 2026-10-20T06:48:00Z, and no file i
 | C4 | graph_pipeline_daily | healthy | **contradicted** |
 | C5 | workday_project_transactions_weekly | late | **contradicted** |
 | C6 | mm_rapid_pipeline_30min | healthy | **contradicted** |
-| C7 | deltek_helix_daily_refresh | healthy | **verified** |
+| C7 | deltek_helix_daily_refresh | healthy | **contradicted** |
 | C8 | use_case_tracking_scheduled | healthy | **unverifiable** |
 
 ### C1 workday_bronze_daily — contradicted
@@ -237,15 +260,17 @@ the claim says healthy; the evidence says degraded. The runs it cites are real a
 - `rounds: mm_rapid_pipeline_30min is degraded`
 - `rounds: job_succeeds_only_on_retry, mm_rapid_pipeline_30min is succeeding only because it is being retried`
 
-### C7 deltek_helix_daily_refresh — verified
+### C7 deltek_helix_daily_refresh — contradicted
 
 Claimed: _Healthy. Today's run succeeded._
 
-the evidence supports healthy, which is what the claim asserts
+the claim says healthy; the evidence says broken. The runs it cites are real and say what it says they say, so what it got wrong is the conclusion, not the citation
 
 - `C7 claims healthy: Healthy. Today's run succeeded.`
 - `workspace/runs.jsonl: run_id 882159 of deltek_helix_daily_refresh started 2026-10-20T08:30:00Z, SUCCESS after 0 retries`
-- `rounds: deltek_helix_daily_refresh is healthy`
+- `rounds: deltek_helix_daily_refresh is broken`
+- `rounds: deployed_schema_breaks_its_contract, the deployed schema of hed_dataplatform.gold.fact_project_financials breaks contract v1.2.0: net_fee, fee_currency`
+- `rounds: deployed_schema_has_columns_its_contract_does_not_declare, the deployed schema of hed_dataplatform.gold.fact_project_financials has columns contract v1.2.0 does not declare: net_fee_usd`
 
 ### C8 use_case_tracking_scheduled — unverifiable
 

@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from morning_rounds import drift, loader, models, status
+from morning_rounds import contracts, drift, loader, models, status
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 SUPPLIED_FIXTURES = REPOSITORY_ROOT / "takehome-packet" / "fixtures"
@@ -203,10 +203,15 @@ class SuppliedSnapshotStatusTest(unittest.TestCase):
             table: loader.load_table_history(SUPPLIED_FIXTURES, self.manifest, table)
             for pipeline in self.registry.pipelines for table in pipeline.writes
         }
+        governed = loader.load_contracts(SUPPLIED_FIXTURES)
+        schemas = {
+            contract.table: loader.load_table_schema(SUPPLIED_FIXTURES, self.manifest, contract.table)
+            for contract in governed
+        }
         self.drift_findings = drift.find_drift(
             loader.load_job_definitions(SUPPLIED_FIXTURES),
             loader.load_jobs_snapshot(SUPPLIED_FIXTURES),
-        )
+        ) + contracts.find_all_contract_drift(governed, schemas, self.registry)
         self.assessed = {
             assessed.pipeline.id: assessed
             for assessed in status.assess(
@@ -247,6 +252,14 @@ class SuppliedSnapshotStatusTest(unittest.TestCase):
         self.assertEqual([finding.code for finding in assessed.findings],
                          [models.FindingCode.TABLE_EVIDENCE_UNREADABLE])
 
+    def test_the_table_that_lost_a_money_column_breaks_the_pipeline_that_writes_it(self) -> None:
+        assessed = self.assessed["deltek_helix_daily_refresh"]
+
+        self.assertEqual(assessed.status, models.Status.BROKEN)
+        self.assertEqual([finding.code for finding in assessed.findings],
+                         [models.FindingCode.SCHEMA_BREAKS_CONTRACT,
+                          models.FindingCode.SCHEMA_EXCEEDS_CONTRACT])
+
     def test_the_hand_downgraded_pipeline_is_degraded_by_its_drift_alone(self) -> None:
         assessed = self.assessed["graph_pipeline_daily"]
 
@@ -271,13 +284,13 @@ class SuppliedSnapshotStatusTest(unittest.TestCase):
             models.FindingCode.TABLE_OLDER_THAN_SLO,
         ])
 
-    def test_the_three_pipelines_with_nothing_wrong_with_them_are_healthy_and_silent(self) -> None:
+    def test_the_pipelines_with_nothing_wrong_with_them_are_healthy_and_silent(self) -> None:
         healthy = sorted(
             assessed.pipeline.id for assessed in self.assessed.values()
             if assessed.status is models.Status.HEALTHY
         )
 
-        self.assertEqual(healthy, ["deltek_helix_daily_refresh", "gold_dim_employees_daily",
+        self.assertEqual(healthy, ["gold_dim_employees_daily",
                                    "workday_project_transactions_weekly"])
         for pipeline_id in healthy:
             self.assertEqual(self.assessed[pipeline_id].findings, ())

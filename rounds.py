@@ -14,6 +14,7 @@ from pathlib import Path
 
 from morning_rounds import (
     constants,
+    contracts as contract_rule,
     drift,
     loader,
     models,
@@ -123,7 +124,10 @@ def run_check(arguments: argparse.Namespace) -> int:
         dictionary = loader.load_data_dictionary(fixtures)
         gauges = loader.load_gauge_catalog(fixtures)
         review = loader.load_agent_review(fixtures)
-        written_tables = sorted({table for pipeline in registry.pipelines for table in pipeline.writes})
+        written_tables = sorted(
+            {table for pipeline in registry.pipelines for table in pipeline.writes}
+            | {contract.table for contract in contracts}
+        )
         histories = {
             table: loader.load_table_history(fixtures, manifest, table) for table in written_tables
         }
@@ -156,18 +160,20 @@ def run_check(arguments: argparse.Namespace) -> int:
         f"{loader.RUNS_RELATIVE_PATH.as_posix()}: {len(runs.runs)} runs, "
         f"{sum(len(run.attempts) for run in runs.runs)} attempts"
     )
-    drift_findings = drift.find_drift(definitions, deployed)
-    assessed = status.assess(registry, runs, histories, drift_findings, as_of)
+    findings = (drift.find_drift(definitions, deployed)
+                + contract_rule.find_all_contract_drift(contracts, schemas, registry))
+    assessed = status.assess(registry, runs, histories, findings, as_of)
     rounds = models.Rounds(
         as_of=as_of,
         manifest=manifest,
         pipelines=assessed,
-        platform_findings=status.platform_findings(registry, drift_findings),
+        platform_findings=status.platform_findings(registry, findings),
         histories=histories,
         review=review,
         verdicts=reconcile.reconcile(review, assessed, runs),
         unreviewed=reconcile.unreviewed_pipelines(review, registry),
         catalog=gauges,
+        contract_violations=contract_rule.count_violations(contracts, schemas),
     )
 
     write_output_line(

@@ -231,8 +231,32 @@
       "writes": [
         "hed_dataplatform.gold.fact_project_financials"
       ],
-      "status": "healthy",
-      "findings": []
+      "status": "broken",
+      "findings": [
+        {
+          "code": "deployed_schema_breaks_its_contract",
+          "what": "the deployed schema of hed_dataplatform.gold.fact_project_financials breaks contract v1.2.0: net_fee, fee_currency",
+          "why": "the contract is the promise this table makes to its consumers, and net_fee, fee_currency are not deployed as it says. Anything reading those columns by name is reading something the contract does not describe",
+          "evidence": [
+            "repo/contracts/gold.fact_project_financials.json: net_fee = DECIMAL(18,2) nullable",
+            "workspace/tables/hed_dataplatform.gold.fact_project_financials/schema.json: net_fee = absent",
+            "repo/contracts/gold.fact_project_financials.json: fee_currency = STRING nullable",
+            "workspace/tables/hed_dataplatform.gold.fact_project_financials/schema.json: fee_currency = absent",
+            "repo/contracts/gold.fact_project_financials.json: contract_version 1.2.0, owner data-platform",
+            "repo/docs/platform-standards.md:35-39"
+          ]
+        },
+        {
+          "code": "deployed_schema_has_columns_its_contract_does_not_declare",
+          "what": "the deployed schema of hed_dataplatform.gold.fact_project_financials has columns contract v1.2.0 does not declare: net_fee_usd",
+          "why": "the data in them is not wrong, but the contract no longer describes the table, so a consumer cannot tell from it what net_fee_usd holds. The standard requires a change to a governed table to ship with an updated contract",
+          "evidence": [
+            "workspace/tables/hed_dataplatform.gold.fact_project_financials/schema.json: net_fee_usd = DOUBLE nullable, not in the contract",
+            "repo/contracts/gold.fact_project_financials.json: contract_version 1.2.0, owner data-platform",
+            "repo/docs/platform-standards.md:35-39"
+          ]
+        }
+      ]
     },
     {
       "id": "use_case_tracking_scheduled",
@@ -369,12 +393,14 @@
         "pipeline": "deltek_helix_daily_refresh",
         "claimed_status": "healthy",
         "assertion": "Healthy. Today's run succeeded.",
-        "verdict": "verified",
-        "why": "the evidence supports healthy, which is what the claim asserts",
+        "verdict": "contradicted",
+        "why": "the claim says healthy; the evidence says broken. The runs it cites are real and say what it says they say, so what it got wrong is the conclusion, not the citation",
         "evidence": [
           "C7 claims healthy: Healthy. Today's run succeeded.",
           "workspace/runs.jsonl: run_id 882159 of deltek_helix_daily_refresh started 2026-10-20T08:30:00Z, SUCCESS after 0 retries",
-          "rounds: deltek_helix_daily_refresh is healthy"
+          "rounds: deltek_helix_daily_refresh is broken",
+          "rounds: deployed_schema_breaks_its_contract, the deployed schema of hed_dataplatform.gold.fact_project_financials breaks contract v1.2.0: net_fee, fee_currency",
+          "rounds: deployed_schema_has_columns_its_contract_does_not_declare, the deployed schema of hed_dataplatform.gold.fact_project_financials has columns contract v1.2.0 does not declare: net_fee_usd"
         ]
       },
       {
@@ -398,14 +424,14 @@
   },
   "counts": {
     "pipelines_by_status": {
-      "broken": 3,
+      "broken": 4,
       "unmeasured": 1,
       "degraded": 2,
-      "healthy": 3
+      "healthy": 2
     },
     "claims_by_verdict": {
-      "verified": 2,
-      "contradicted": 5,
+      "verified": 1,
+      "contradicted": 6,
       "unverifiable": 1
     },
     "platform_findings": 1
