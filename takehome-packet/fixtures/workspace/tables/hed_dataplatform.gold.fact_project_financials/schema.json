@@ -1,0 +1,36 @@
+{
+  "table": "hed_dataplatform.gold.fact_project_financials",
+  "captured_at": "2026-10-20T11:30:00Z",
+  "columns": [
+    {
+      "name": "project_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "period",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "gross_fee",
+      "type": "DECIMAL(18,2)",
+      "nullable": true
+    },
+    {
+      "name": "net_fee_usd",
+      "type": "DOUBLE",
+      "nullable": true
+    },
+    {
+      "name": "source_system",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "_loaded_at",
+      "type": "TIMESTAMP",
+      "nullable": false
+    }
+  ]
+}

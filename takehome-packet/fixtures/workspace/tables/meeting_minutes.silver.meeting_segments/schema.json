@@ -1,0 +1,41 @@
+{
+  "table": "meeting_minutes.silver.meeting_segments",
+  "captured_at": "2026-10-20T11:30:00Z",
+  "columns": [
+    {
+      "name": "segment_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "meeting_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "meeting_date",
+      "type": "DATE",
+      "nullable": false
+    },
+    {
+      "name": "speaker",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "text",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "tier",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "_processed_at",
+      "type": "TIMESTAMP",
+      "nullable": false
+    }
+  ]
+}

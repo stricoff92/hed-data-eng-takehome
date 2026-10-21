@@ -1,0 +1,574 @@
+{
+  "captured_at": "2026-10-20T11:30:00Z",
+  "jobs": [
+    {
+      "job_id": 1001,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "workday_bronze_daily",
+        "tags": {
+          "pipeline": "workday_bronze_daily",
+          "tier": "1"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 0 6 * * ?",
+          "timezone_id": "America/New_York",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/workday/ingest_workers",
+              "source": "GIT"
+            },
+            "max_retries": 0,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "ci-deploy@hed.example",
+        "at": "2026-09-29T16:20:00Z"
+      }
+    },
+    {
+      "job_id": 1002,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "gold_dim_employees_daily",
+        "tags": {
+          "pipeline": "gold_dim_employees_daily",
+          "tier": "1"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 30 6 * * ?",
+          "timezone_id": "America/New_York",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/gold/build_dim_employees",
+              "source": "GIT"
+            },
+            "max_retries": 1,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "ci-deploy@hed.example",
+        "at": "2026-09-29T16:20:00Z"
+      }
+    },
+    {
+      "job_id": 1003,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "dim_projects_daily",
+        "tags": {
+          "pipeline": "dim_projects_daily",
+          "tier": "1"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 30 5 * * ?",
+          "timezone_id": "America/New_York",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/gold/build_dim_projects",
+              "source": "GIT"
+            },
+            "max_retries": 1,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "ci-deploy@hed.example",
+        "at": "2026-09-29T16:20:00Z"
+      }
+    },
+    {
+      "job_id": 1004,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "dashboard_parity_daily",
+        "tags": {
+          "pipeline": "dashboard_parity_daily",
+          "tier": "3"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 0 4 * * ?",
+          "timezone_id": "America/New_York",
+          "pause_status": "PAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/gold/dashboard_parity",
+              "source": "GIT"
+            },
+            "max_retries": 0,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "r.chen@hed.example",
+        "at": "2026-10-11T14:02:00Z"
+      }
+    },
+    {
+      "job_id": 1005,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "graph_pipeline_daily",
+        "tags": {
+          "pipeline": "graph_pipeline_daily",
+          "tier": "2"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 0 3 * * ?",
+          "timezone_id": "America/New_York",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "13.3.x-scala2.12",
+              "node_type_id": "Standard_DS3_v2",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/graph/ingest_meeting_events",
+              "source": "GIT"
+            },
+            "max_retries": 1,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "j.okafor@hed.example",
+        "at": "2026-10-15T19:41:00Z"
+      }
+    },
+    {
+      "job_id": 1006,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "workday_project_transactions_weekly",
+        "tags": {
+          "pipeline": "workday_project_transactions_weekly",
+          "tier": "2"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 0 5 ? * WED",
+          "timezone_id": "America/New_York",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/workday/ingest_project_transactions",
+              "source": "GIT"
+            },
+            "max_retries": 1,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "ci-deploy@hed.example",
+        "at": "2026-09-29T16:20:00Z"
+      }
+    },
+    {
+      "job_id": 1007,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "mm_rapid_pipeline_30min",
+        "tags": {
+          "pipeline": "mm_rapid_pipeline_30min",
+          "tier": "1"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 0/30 * * * ?",
+          "timezone_id": "UTC",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/meeting_minutes/rapid_segments",
+              "source": "GIT"
+            },
+            "max_retries": 2,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "ci-deploy@hed.example",
+        "at": "2026-09-29T16:20:00Z"
+      }
+    },
+    {
+      "job_id": 1008,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "deltek_helix_daily_refresh",
+        "tags": {
+          "pipeline": "deltek_helix_daily_refresh",
+          "tier": "1"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 30 4 * * ?",
+          "timezone_id": "America/New_York",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/deltek/refresh_project_financials",
+              "source": "GIT"
+            },
+            "max_retries": 1,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "ci-deploy@hed.example",
+        "at": "2026-09-29T16:20:00Z"
+      }
+    },
+    {
+      "job_id": 1009,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "use_case_tracking_scheduled",
+        "tags": {
+          "pipeline": "use_case_tracking_scheduled",
+          "tier": "2"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 0 7 * * ?",
+          "timezone_id": "America/New_York",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/use_cases/sync_registry",
+              "source": "GIT"
+            },
+            "max_retries": 1,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "ci-deploy@hed.example",
+        "at": "2026-09-29T16:20:00Z"
+      }
+    },
+    {
+      "job_id": 1099,
+      "creator_user_name": "ci-deploy@hed.example",
+      "created_time": "2026-06-02T15:10:00Z",
+      "settings": {
+        "name": "table_maintenance_nightly",
+        "tags": {
+          "purpose": "maintenance"
+        },
+        "schedule": {
+          "quartz_cron_expression": "0 0 23 * * ?",
+          "timezone_id": "America/New_York",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Repos/platform/notebooks/ops/optimize_tables",
+              "source": "GIT"
+            },
+            "max_retries": 0,
+            "min_retry_interval_millis": 60000
+          }
+        ],
+        "git_source": {
+          "git_url": "https://github.com/example/platform",
+          "git_provider": "gitHub",
+          "git_branch": "main"
+        },
+        "email_notifications": {
+          "on_failure": [
+            "data-platform-alerts@hed.example"
+          ]
+        }
+      },
+      "last_modified": {
+        "by": "ci-deploy@hed.example",
+        "at": "2026-09-29T16:20:00Z"
+      }
+    },
+    {
+      "job_id": 1188,
+      "creator_user_name": "r.chen@hed.example",
+      "created_time": "2026-10-20T06:48:00Z",
+      "settings": {
+        "name": "mm_segments_backfill",
+        "tags": {},
+        "schedule": {
+          "quartz_cron_expression": "0 0/30 * * * ?",
+          "timezone_id": "UTC",
+          "pause_status": "UNPAUSED"
+        },
+        "job_clusters": [
+          {
+            "job_cluster_key": "main",
+            "new_cluster": {
+              "spark_version": "14.3.x-scala2.12",
+              "node_type_id": "Standard_D4s_v5",
+              "num_workers": 2
+            }
+          }
+        ],
+        "tasks": [
+          {
+            "task_key": "main",
+            "job_cluster_key": "main",
+            "notebook_task": {
+              "notebook_path": "/Users/r.chen@hed.example/mm_backfill_segments",
+              "source": "WORKSPACE"
+            },
+            "max_retries": 0,
+            "min_retry_interval_millis": 60000
+          }
+        ]
+      },
+      "last_modified": {
+        "by": "r.chen@hed.example",
+        "at": "2026-10-20T06:48:00Z"
+      }
+    }
+  ]
+}

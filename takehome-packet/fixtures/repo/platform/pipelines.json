@@ -1,0 +1,143 @@
+{
+  "registry_version": 3,
+  "pipelines": [
+    {
+      "id": "workday_bronze_daily",
+      "job": "workday_bronze_daily",
+      "cadence": "daily 06:00 America/New_York",
+      "cadence_hours": 24,
+      "freshness_slo_hours": 26,
+      "tier": 1,
+      "owner": "data-platform",
+      "writes": [
+        "hed_dataplatform.bronze.workday_workers",
+        "hed_dataplatform.silver.workday_workers"
+      ],
+      "reads": [
+        "Workday RaaS: Worker_Snapshot"
+      ]
+    },
+    {
+      "id": "gold_dim_employees_daily",
+      "job": "gold_dim_employees_daily",
+      "cadence": "daily 06:30 America/New_York",
+      "cadence_hours": 24,
+      "freshness_slo_hours": 26,
+      "tier": 1,
+      "owner": "data-platform",
+      "writes": [
+        "hed_dataplatform.gold.dim_employees"
+      ],
+      "reads": [
+        "hed_dataplatform.silver.workday_workers"
+      ]
+    },
+    {
+      "id": "dim_projects_daily",
+      "job": "dim_projects_daily",
+      "cadence": "daily 05:30 America/New_York",
+      "cadence_hours": 24,
+      "freshness_slo_hours": 26,
+      "tier": 1,
+      "owner": "data-platform",
+      "writes": [
+        "hed_dataplatform.gold.dim_projects"
+      ],
+      "reads": [
+        "hed_dataplatform.bronze.dataverse_projects"
+      ]
+    },
+    {
+      "id": "dashboard_parity_daily",
+      "job": "dashboard_parity_daily",
+      "cadence": "daily 04:00 America/New_York",
+      "cadence_hours": 24,
+      "freshness_slo_hours": 26,
+      "tier": 3,
+      "owner": "data-platform",
+      "writes": [
+        "hed_dataplatform.gold.dashboard_parity"
+      ],
+      "reads": [
+        "hed_dataplatform.gold.fact_project_financials",
+        "legacy: HEDDW report extracts"
+      ]
+    },
+    {
+      "id": "graph_pipeline_daily",
+      "job": "graph_pipeline_daily",
+      "cadence": "daily 03:00 America/New_York",
+      "cadence_hours": 24,
+      "freshness_slo_hours": 26,
+      "tier": 2,
+      "owner": "data-platform",
+      "writes": [
+        "hed_dataplatform.silver.graph_meeting_events"
+      ],
+      "reads": [
+        "Microsoft Graph: calendar events"
+      ]
+    },
+    {
+      "id": "workday_project_transactions_weekly",
+      "job": "workday_project_transactions_weekly",
+      "cadence": "weekly Wednesday 05:00 America/New_York",
+      "cadence_hours": 168,
+      "freshness_slo_hours": 192,
+      "tier": 2,
+      "owner": "data-platform",
+      "writes": [
+        "hed_dataplatform.silver.workday_project_transactions"
+      ],
+      "reads": [
+        "Workday RaaS: Project_Transactions"
+      ]
+    },
+    {
+      "id": "mm_rapid_pipeline_30min",
+      "job": "mm_rapid_pipeline_30min",
+      "cadence": "every 30 minutes",
+      "cadence_hours": 0.5,
+      "freshness_slo_hours": 2,
+      "tier": 1,
+      "owner": "data-platform",
+      "writes": [
+        "meeting_minutes.silver.meeting_segments"
+      ],
+      "reads": [
+        "hed_dataplatform.silver.graph_meeting_events",
+        "Fireflies transcripts"
+      ]
+    },
+    {
+      "id": "deltek_helix_daily_refresh",
+      "job": "deltek_helix_daily_refresh",
+      "cadence": "daily 04:30 America/New_York",
+      "cadence_hours": 24,
+      "freshness_slo_hours": 26,
+      "tier": 1,
+      "owner": "data-platform",
+      "writes": [
+        "hed_dataplatform.gold.fact_project_financials"
+      ],
+      "reads": [
+        "Deltek Vision: project fee ledger"
+      ]
+    },
+    {
+      "id": "use_case_tracking_scheduled",
+      "job": "use_case_tracking_scheduled",
+      "cadence": "daily 07:00 America/New_York",
+      "cadence_hours": 24,
+      "freshness_slo_hours": 26,
+      "tier": 2,
+      "owner": "data-platform",
+      "writes": [
+        "hed_dataplatform.gold.usecase_registry"
+      ],
+      "reads": [
+        "Azure DevOps: use-case work items"
+      ]
+    }
+  ]
+}

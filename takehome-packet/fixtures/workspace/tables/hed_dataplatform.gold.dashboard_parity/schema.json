@@ -1,0 +1,36 @@
+{
+  "table": "hed_dataplatform.gold.dashboard_parity",
+  "captured_at": "2026-10-20T11:30:00Z",
+  "columns": [
+    {
+      "name": "report_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "measure",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "legacy_value",
+      "type": "DECIMAL(18,2)",
+      "nullable": true
+    },
+    {
+      "name": "lakehouse_value",
+      "type": "DECIMAL(18,2)",
+      "nullable": true
+    },
+    {
+      "name": "delta_pct",
+      "type": "DOUBLE",
+      "nullable": true
+    },
+    {
+      "name": "_checked_at",
+      "type": "TIMESTAMP",
+      "nullable": false
+    }
+  ]
+}

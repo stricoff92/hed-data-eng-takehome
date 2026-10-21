@@ -1,0 +1,110 @@
+{
+  "agent": "pipeline-health-monitor",
+  "agent_version": "0.4.2",
+  "generated_at": "2026-10-20T10:45:00Z",
+  "scope": "Databricks jobs with a run in the last 7 days",
+  "summary": "8 pipelines reviewed. 6 healthy, 1 recovered (dim_projects_daily, manual re-run), 1 late (workday_project_transactions_weekly). No action required beyond the weekly job.",
+  "claims": [
+    {
+      "id": "C1",
+      "pipeline": "workday_bronze_daily",
+      "assertion": "Healthy. Today's run succeeded.",
+      "status": "healthy",
+      "evidence": [
+        {
+          "type": "run",
+          "run_id": 882184
+        }
+      ]
+    },
+    {
+      "id": "C2",
+      "pipeline": "gold_dim_employees_daily",
+      "assertion": "Healthy. Refreshed this morning.",
+      "status": "healthy",
+      "evidence": [
+        {
+          "type": "run",
+          "run_id": 882199
+        }
+      ]
+    },
+    {
+      "id": "C3",
+      "pipeline": "dim_projects_daily",
+      "assertion": "Recovered. The 09:30Z run failed on a missing source table; I triggered a manual re-run, which succeeded at 10:12Z.",
+      "status": "recovered",
+      "evidence": [
+        {
+          "type": "run",
+          "run_id": 882174
+        },
+        {
+          "type": "run",
+          "run_id": 882177
+        }
+      ]
+    },
+    {
+      "id": "C4",
+      "pipeline": "graph_pipeline_daily",
+      "assertion": "Healthy. Today's run succeeded.",
+      "status": "healthy",
+      "evidence": [
+        {
+          "type": "run",
+          "run_id": 882128
+        }
+      ]
+    },
+    {
+      "id": "C5",
+      "pipeline": "workday_project_transactions_weekly",
+      "assertion": "Late. No successful run in over 6 days; exceeds the daily freshness window.",
+      "status": "late",
+      "evidence": [
+        {
+          "type": "run",
+          "run_id": 881913
+        }
+      ]
+    },
+    {
+      "id": "C6",
+      "pipeline": "mm_rapid_pipeline_30min",
+      "assertion": "Healthy. 25 of the last 25 runs succeeded.",
+      "status": "healthy",
+      "evidence": [
+        {
+          "type": "runs",
+          "job_id": 1007,
+          "window": "last 25"
+        }
+      ]
+    },
+    {
+      "id": "C7",
+      "pipeline": "deltek_helix_daily_refresh",
+      "assertion": "Healthy. Today's run succeeded.",
+      "status": "healthy",
+      "evidence": [
+        {
+          "type": "run",
+          "run_id": 882159
+        }
+      ]
+    },
+    {
+      "id": "C8",
+      "pipeline": "use_case_tracking_scheduled",
+      "assertion": "Healthy. Registry table is fresh.",
+      "status": "healthy",
+      "evidence": [
+        {
+          "type": "run",
+          "run_id": 882066
+        }
+      ]
+    }
+  ]
+}

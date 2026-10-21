@@ -1,0 +1,193 @@
+{
+  "tables": [
+    {
+      "table": "hed_dataplatform.silver.workday_workers",
+      "built_from": [
+        "hed_dataplatform.bronze.workday_workers"
+      ]
+    },
+    {
+      "table": "hed_dataplatform.gold.dim_employees",
+      "built_from": [
+        "hed_dataplatform.silver.workday_workers"
+      ]
+    },
+    {
+      "table": "hed_dataplatform.gold.dashboard_parity",
+      "built_from": [
+        "hed_dataplatform.gold.fact_project_financials"
+      ]
+    },
+    {
+      "table": "meeting_minutes.silver.meeting_segments",
+      "built_from": [
+        "hed_dataplatform.silver.graph_meeting_events"
+      ]
+    }
+  ],
+  "consumers": [
+    {
+      "id": "pbi-staffing",
+      "name": "Staffing Report",
+      "type": "powerbi",
+      "owner": "Operations Reporting \u2014 T. Nguyen",
+      "refresh": "daily 08:00 America/New_York",
+      "reads": [
+        {
+          "table": "hed_dataplatform.gold.dim_employees",
+          "fields": [
+            "employee_id",
+            "display_name",
+            "home_office",
+            "employment_status"
+          ]
+        },
+        {
+          "table": "hed_dataplatform.gold.dim_projects",
+          "fields": [
+            "project_id",
+            "project_name",
+            "sector"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pbi-project-financials",
+      "name": "Project Financials",
+      "type": "powerbi",
+      "owner": "Finance Reporting \u2014 M. Alvarez",
+      "refresh": "daily 07:00 America/New_York",
+      "reads": [
+        {
+          "table": "hed_dataplatform.gold.fact_project_financials",
+          "fields": [
+            "project_id",
+            "period",
+            "gross_fee",
+            "net_fee",
+            "fee_currency"
+          ]
+        },
+        {
+          "table": "hed_dataplatform.gold.dim_projects",
+          "fields": [
+            "project_id",
+            "project_name"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pbi-sector-leadership",
+      "name": "Sector Leadership Dashboard",
+      "type": "powerbi",
+      "owner": "Strategy \u2014 K. Osei",
+      "refresh": "daily 07:30 America/New_York",
+      "reads": [
+        {
+          "table": "hed_dataplatform.gold.fact_project_financials",
+          "fields": [
+            "project_id",
+            "period",
+            "gross_fee"
+          ]
+        },
+        {
+          "table": "hed_dataplatform.gold.dim_projects",
+          "fields": [
+            "project_id",
+            "sector"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "app-attendance",
+      "name": "Attendance Accuracy",
+      "type": "app",
+      "owner": "Data & AI \u2014 Meeting Minutes",
+      "refresh": "on read",
+      "reads": [
+        {
+          "table": "hed_dataplatform.gold.dim_employees",
+          "fields": [
+            "employee_id",
+            "display_name",
+            "employment_status"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "app-meeting-minutes",
+      "name": "Meeting Minutes",
+      "type": "app",
+      "owner": "Data & AI \u2014 Meeting Minutes",
+      "refresh": "on read",
+      "reads": [
+        {
+          "table": "meeting_minutes.silver.meeting_segments",
+          "fields": [
+            "segment_id",
+            "meeting_id",
+            "speaker",
+            "text",
+            "tier"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pbi-report-parity",
+      "name": "Report Parity Review",
+      "type": "powerbi",
+      "owner": "Data & AI \u2014 Reporting",
+      "refresh": "weekly Monday",
+      "reads": [
+        {
+          "table": "hed_dataplatform.gold.dashboard_parity",
+          "fields": [
+            "report_id",
+            "measure",
+            "delta_pct"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "app-use-case-tracker",
+      "name": "Use Case Tracker",
+      "type": "app",
+      "owner": "Data & AI \u2014 Blueprint",
+      "refresh": "on read",
+      "reads": [
+        {
+          "table": "hed_dataplatform.gold.usecase_registry",
+          "fields": [
+            "use_case_id",
+            "status",
+            "owner"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "api-project-search",
+      "name": "Project search API",
+      "type": "api",
+      "owner": "Data & AI \u2014 Apps",
+      "refresh": "on read",
+      "reads": [
+        {
+          "table": "hed_dataplatform.silver.workday_project_transactions",
+          "fields": [
+            "project_id",
+            "hours",
+            "transaction_date"
+          ]
+        }
+      ]
+    }
+  ]
+}

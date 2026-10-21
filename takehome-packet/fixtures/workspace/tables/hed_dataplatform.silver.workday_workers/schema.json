@@ -1,0 +1,46 @@
+{
+  "table": "hed_dataplatform.silver.workday_workers",
+  "captured_at": "2026-10-20T11:30:00Z",
+  "columns": [
+    {
+      "name": "worker_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "employee_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "legal_name",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "home_office",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "employment_status",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "hire_date",
+      "type": "DATE",
+      "nullable": true
+    },
+    {
+      "name": "practice",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "_updated_at",
+      "type": "TIMESTAMP",
+      "nullable": false
+    }
+  ]
+}

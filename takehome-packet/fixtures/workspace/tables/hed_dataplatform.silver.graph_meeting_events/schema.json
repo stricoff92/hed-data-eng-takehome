@@ -1,0 +1,31 @@
+{
+  "table": "hed_dataplatform.silver.graph_meeting_events",
+  "captured_at": "2026-10-20T11:30:00Z",
+  "columns": [
+    {
+      "name": "event_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "meeting_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "organizer",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "start_time",
+      "type": "TIMESTAMP",
+      "nullable": true
+    },
+    {
+      "name": "_ingested_at",
+      "type": "TIMESTAMP",
+      "nullable": false
+    }
+  ]
+}

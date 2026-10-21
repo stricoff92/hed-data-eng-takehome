@@ -1,0 +1,26 @@
+{
+  "table": "hed_dataplatform.bronze.workday_workers",
+  "captured_at": "2026-10-20T11:30:00Z",
+  "columns": [
+    {
+      "name": "worker_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "payload",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "_ingest_date",
+      "type": "DATE",
+      "nullable": false
+    },
+    {
+      "name": "_ingested_at",
+      "type": "TIMESTAMP",
+      "nullable": false
+    }
+  ]
+}

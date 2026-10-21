@@ -1,0 +1,18 @@
+data_product,table,field,definition,review_status,business_owner,source,original_upstream_source
+Workforce,hed_dataplatform.gold.dim_employees,employee_id,Unique Workday employee identifier.,Approved,People Analytics — S. Patel,Databricks Gold,Workday
+Workforce,hed_dataplatform.gold.dim_employees,display_name,,Needs Review,,Databricks Gold,Workday
+Workforce,hed_dataplatform.gold.dim_employees,home_office,"Office the employee is assigned to in Workday, not the office they badge into.",Approved,People Analytics — S. Patel,Databricks Gold,Workday
+Workforce,hed_dataplatform.gold.dim_employees,employment_status,"Workday worker status (Active, Leave, Terminated) as of the last snapshot.",Approved,People Analytics — S. Patel,Databricks Gold,Workday
+Workforce,hed_dataplatform.gold.dim_employees,practice,,Needs Review,,Databricks Gold,Workday
+Projects,hed_dataplatform.gold.dim_projects,project_id,Project number as issued at project create.,Approved,Project Controls — L. Fischer,Databricks Gold,Dynamics 365 (Dataverse)
+Projects,hed_dataplatform.gold.dim_projects,project_name,Current project name; renames overwrite history.,Approved,Project Controls — L. Fischer,Databricks Gold,Dynamics 365 (Dataverse)
+Projects,hed_dataplatform.gold.dim_projects,sector,Market sector assigned at pursuit.,Needs Review,,Databricks Gold,Dynamics 365 (Dataverse)
+Project Financials,hed_dataplatform.gold.fact_project_financials,project_id,Project number as issued at project create.,Approved,Finance Reporting — M. Alvarez,Databricks Gold,Deltek Vision
+Project Financials,hed_dataplatform.gold.fact_project_financials,period,"Fiscal period, YYYY-MM.",Approved,Finance Reporting — M. Alvarez,Databricks Gold,Deltek Vision
+Project Financials,hed_dataplatform.gold.fact_project_financials,gross_fee,Total contracted fee for the period before consultant pass-through.,Approved,Finance Reporting — M. Alvarez,Databricks Gold,Deltek Vision
+Project Financials,hed_dataplatform.gold.fact_project_financials,net_fee,,Needs Review,,Databricks Gold,Deltek Vision
+Project Financials,hed_dataplatform.gold.fact_project_financials,fee_currency,ISO 4217 currency of gross_fee and net_fee.,Approved,Finance Reporting — M. Alvarez,Databricks Gold,Deltek Vision
+Meeting Minutes,meeting_minutes.silver.meeting_segments,tier,Governance tier assigned to the segment; controls who may read it.,Approved,Data & AI — Meeting Minutes,Databricks Silver,Meeting Minutes pipeline
+Meeting Minutes,meeting_minutes.silver.meeting_segments,speaker,,Needs Review,,Databricks Silver,Microsoft Graph / Fireflies
+Reporting,hed_dataplatform.gold.dashboard_parity,delta_pct,Percent difference between the legacy report value and the lakehouse value for the same measure.,Approved,Data & AI — Reporting,Databricks Gold,Derived
+Use Cases,hed_dataplatform.gold.usecase_registry,status,Lifecycle status of the use case.,Approved,Data & AI — Blueprint,Databricks Gold,Azure DevOps

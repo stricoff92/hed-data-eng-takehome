@@ -1,0 +1,53 @@
+{
+  "table": "hed_dataplatform.gold.fact_project_financials",
+  "governed": true,
+  "owner": "data-platform",
+  "contract_version": "1.2.0",
+  "columns": [
+    {
+      "name": "project_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "period",
+      "type": "STRING",
+      "nullable": false,
+      "note": "YYYY-MM"
+    },
+    {
+      "name": "gross_fee",
+      "type": "DECIMAL(18,2)",
+      "nullable": true
+    },
+    {
+      "name": "net_fee",
+      "type": "DECIMAL(18,2)",
+      "nullable": true
+    },
+    {
+      "name": "fee_currency",
+      "type": "STRING",
+      "nullable": true,
+      "note": "ISO 4217"
+    },
+    {
+      "name": "source_system",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "_loaded_at",
+      "type": "TIMESTAMP",
+      "nullable": false
+    }
+  ],
+  "writers": [
+    {
+      "job": "deltek_helix_daily_refresh",
+      "statements": [
+        "WRITE (overwrite)"
+      ]
+    }
+  ]
+}

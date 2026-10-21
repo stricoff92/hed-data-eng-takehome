@@ -1,0 +1,117 @@
+{
+  "export": "platform-snapshot",
+  "captured_at": "2026-10-20T11:30:00Z",
+  "captured_by": "svc-platform-snapshot@hed.example",
+  "workspace": "adb-0000000000000000 (synthetic)",
+  "files": [
+    {
+      "path": "workspace/jobs.json",
+      "status": "ok"
+    },
+    {
+      "path": "workspace/runs.jsonl",
+      "status": "ok",
+      "note": "Jobs API runs/list, last 25 runs per job, one line per attempt, newest first"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.bronze.workday_workers/history.jsonl",
+      "status": "ok",
+      "note": "DESCRIBE HISTORY, newest first, up to the last 30 versions"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.bronze.workday_workers/schema.json",
+      "status": "ok",
+      "note": "DESCRIBE TABLE"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.dashboard_parity/history.jsonl",
+      "status": "ok",
+      "note": "DESCRIBE HISTORY, newest first, up to the last 30 versions"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.dashboard_parity/schema.json",
+      "status": "ok",
+      "note": "DESCRIBE TABLE"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.dim_employees/history.jsonl",
+      "status": "ok",
+      "note": "DESCRIBE HISTORY, newest first, up to the last 30 versions"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.dim_employees/schema.json",
+      "status": "ok",
+      "note": "DESCRIBE TABLE"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.dim_projects/history.jsonl",
+      "status": "ok",
+      "note": "DESCRIBE HISTORY, newest first, up to the last 30 versions"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.dim_projects/schema.json",
+      "status": "ok",
+      "note": "DESCRIBE TABLE"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.fact_project_financials/history.jsonl",
+      "status": "ok",
+      "note": "DESCRIBE HISTORY, newest first, up to the last 30 versions"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.fact_project_financials/schema.json",
+      "status": "ok",
+      "note": "DESCRIBE TABLE"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.usecase_registry/history.jsonl",
+      "status": "error",
+      "message": "PERMISSION_DENIED: User does not have SELECT on Table 'hed_dataplatform.gold.usecase_registry'."
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.gold.usecase_registry/schema.json",
+      "status": "error",
+      "message": "PERMISSION_DENIED: User does not have SELECT on Table 'hed_dataplatform.gold.usecase_registry'."
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.silver.graph_meeting_events/history.jsonl",
+      "status": "ok",
+      "note": "DESCRIBE HISTORY, newest first, up to the last 30 versions"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.silver.graph_meeting_events/schema.json",
+      "status": "ok",
+      "note": "DESCRIBE TABLE"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.silver.workday_project_transactions/history.jsonl",
+      "status": "ok",
+      "note": "DESCRIBE HISTORY, newest first, up to the last 30 versions"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.silver.workday_project_transactions/schema.json",
+      "status": "ok",
+      "note": "DESCRIBE TABLE"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.silver.workday_workers/history.jsonl",
+      "status": "ok",
+      "note": "DESCRIBE HISTORY, newest first, up to the last 30 versions"
+    },
+    {
+      "path": "workspace/tables/hed_dataplatform.silver.workday_workers/schema.json",
+      "status": "ok",
+      "note": "DESCRIBE TABLE"
+    },
+    {
+      "path": "workspace/tables/meeting_minutes.silver.meeting_segments/history.jsonl",
+      "status": "ok",
+      "note": "DESCRIBE HISTORY, newest first, up to the last 30 versions"
+    },
+    {
+      "path": "workspace/tables/meeting_minutes.silver.meeting_segments/schema.json",
+      "status": "ok",
+      "note": "DESCRIBE TABLE"
+    }
+  ]
+}

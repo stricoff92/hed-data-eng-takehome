@@ -1,0 +1,36 @@
+{
+  "table": "hed_dataplatform.gold.dim_employees",
+  "captured_at": "2026-10-20T11:30:00Z",
+  "columns": [
+    {
+      "name": "employee_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "display_name",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "home_office",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "employment_status",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "practice",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "_built_at",
+      "type": "TIMESTAMP",
+      "nullable": false
+    }
+  ]
+}

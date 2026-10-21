@@ -1,0 +1,31 @@
+{
+  "table": "hed_dataplatform.gold.dim_projects",
+  "captured_at": "2026-10-20T11:30:00Z",
+  "columns": [
+    {
+      "name": "project_id",
+      "type": "STRING",
+      "nullable": false
+    },
+    {
+      "name": "project_name",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "sector",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "project_status",
+      "type": "STRING",
+      "nullable": true
+    },
+    {
+      "name": "_built_at",
+      "type": "TIMESTAMP",
+      "nullable": false
+    }
+  ]
+}

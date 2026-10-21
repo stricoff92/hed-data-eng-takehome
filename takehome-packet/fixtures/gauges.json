@@ -1,0 +1,99 @@
+{
+  "gauges": [
+    {
+      "name": "pipeline_status",
+      "type": "gauge",
+      "labels": [
+        "pipeline",
+        "status",
+        "tier"
+      ],
+      "owner": "rounds",
+      "description": "1 for the pipeline's current status label, 0 for the others."
+    },
+    {
+      "name": "pipeline_data_age_seconds",
+      "type": "gauge",
+      "labels": [
+        "pipeline",
+        "table",
+        "tier"
+      ],
+      "owner": "rounds",
+      "description": "Seconds since the table last received a write that changed data."
+    },
+    {
+      "name": "pipeline_slo_breach",
+      "type": "gauge",
+      "labels": [
+        "pipeline",
+        "tier"
+      ],
+      "owner": "rounds",
+      "description": "1 when data age exceeds the registry freshness SLO."
+    },
+    {
+      "name": "job_definition_drift",
+      "type": "gauge",
+      "labels": [
+        "job"
+      ],
+      "owner": "rounds",
+      "description": "1 when the deployed job differs from its Git definition, or exists only in the workspace."
+    },
+    {
+      "name": "schema_contract_violations",
+      "type": "gauge",
+      "labels": [
+        "table"
+      ],
+      "owner": "rounds",
+      "description": "Count of contract violations on a governed table."
+    },
+    {
+      "name": "agent_claims_contradicted",
+      "type": "gauge",
+      "labels": [
+        "agent"
+      ],
+      "owner": "rounds",
+      "description": "Claims in the latest agent review that the evidence contradicts."
+    },
+    {
+      "name": "databricks_job_duration_seconds",
+      "type": "gauge",
+      "labels": [
+        "job"
+      ],
+      "owner": "external",
+      "description": "Published by the Databricks exporter. Do not republish."
+    },
+    {
+      "name": "databricks_job_failures_total",
+      "type": "counter",
+      "labels": [
+        "job"
+      ],
+      "owner": "external",
+      "description": "Published by the Databricks exporter. Do not republish."
+    },
+    {
+      "name": "pipeline_dq_pass_ratio",
+      "type": "gauge",
+      "labels": [
+        "pipeline"
+      ],
+      "owner": "unowned",
+      "description": "Share of data-quality checks passing. The DQ suite has not landed."
+    },
+    {
+      "name": "pipeline_cost_usd_daily",
+      "type": "gauge",
+      "labels": [
+        "pipeline"
+      ],
+      "owner": "unowned",
+      "description": "Daily compute cost per pipeline. No priced cost source is wired into the platform yet."
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "permissions": {
+    "allow": [
+      "Read(takehome-packet)",
+      "Read(takehome-packet/**)"
+    ],
+    "deny": [
+      "Edit(takehome-packet)",
+      "Edit(takehome-packet/**)",
+      "Edit(dev-log.txt)",
+      "Edit(**/dev-log.txt)"
+    ]
+  },
+  "sandbox": {
+    "filesystem": {
+      "denyWrite": [
+        "takehome-packet",
+        "dev-log.txt"
+      ]
+    }
+  }
+}
