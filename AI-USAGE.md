@@ -19,8 +19,8 @@
 - git add/commit/push
 - repo layout
 - tooling choices (claude model, IDE setup)
-- app data model: `files` -> `data` -> `logic`
-- test data model `data` -> `logic`
+- designing  app data model: `files` -> `data` -> `logic`
+- designing test data model `test_data` -> `logic`
 - claude.md prose (mostly)
 - coding standards
 - reviewing type issues (these were invisible to claude (no cli for basedpyright))
